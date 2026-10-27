@@ -11,8 +11,6 @@ jobs:
       fail-fast: false
       matrix:
         ruby:
-          - '3.3'
-          - '3.4'
           - '4.0'
           - ruby-head
     runs-on: ubuntu-latest
