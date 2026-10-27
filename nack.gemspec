@@ -14,7 +14,7 @@ Gem::Specification.new do |spec|
   spec.authors = ["himura467"]
   spec.homepage = "https://github.com/nsgi-org/nack-ruby"
   spec.license = "MIT"
-  spec.required_ruby_version = ">= 3.3"
+  spec.required_ruby_version = ">= 4.0"
 
   spec.metadata = {
     "source_code_uri" => "https://github.com/nsgi-org/nack-ruby",
