@@ -26,7 +26,7 @@ describe Nack::Spec do
     Nack::Spec.valid_header_value?(:a).must_equal false
   end
 
-  it "accepts final statuses in 200..599 or 101" do
+  it "accepts final statuses" do
     Nack::Spec.valid_status?(101).must_equal true
     Nack::Spec.valid_status?(200).must_equal true
     Nack::Spec.valid_status?(599).must_equal true
@@ -49,7 +49,7 @@ describe Nack::Spec do
     Nack::Spec.valid_content_length?("").must_equal false
     Nack::Spec.valid_content_length?("0\n0").must_equal false
     Nack::Spec.valid_content_length?("\xff").must_equal false
-    Nack::Spec.valid_content_length?(0).must_equal false
+    Nack::Spec.valid_content_length?(:a).must_equal false
   end
 
   it "knows which responses carry no entity body" do
@@ -60,12 +60,12 @@ describe Nack::Spec do
     Nack::Spec.no_entity_body?(199, get).must_equal true
     Nack::Spec.no_entity_body?(204, get).must_equal true
     Nack::Spec.no_entity_body?(304, get).must_equal true
+    Nack::Spec.no_entity_body?(200, head).must_equal true
     Nack::Spec.no_entity_body?(101, get).must_equal false
     Nack::Spec.no_entity_body?(200, get).must_equal false
-    Nack::Spec.no_entity_body?(200, head).must_equal true
   end
 
-  it "accepts interim statuses in 100..199 other than 101" do
+  it "accepts interim statuses" do
     Nack::Spec.valid_interim_status?(100).must_equal true
     Nack::Spec.valid_interim_status?(199).must_equal true
     Nack::Spec.valid_interim_status?(99).must_equal false
