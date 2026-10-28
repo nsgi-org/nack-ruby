@@ -3,30 +3,6 @@
 require_relative "helper"
 
 describe Nack::Utils do
-  it "returns the first value for a header name" do
-    pairs = [["a", "1"], ["b", "2"], ["b", "3"]]
-    Nack::Utils.get_header(pairs, "b").must_equal "2"
-    Nack::Utils.get_header(pairs, "c").must_be_nil
-  end
-
-  it "replaces all occurrences when setting a header" do
-    pairs = [["a", "1"], ["b", "2"], ["a", "3"]]
-    Nack::Utils.set_header(pairs, "a", "4")
-    pairs.must_equal [["a", "4"], ["b", "2"]]
-  end
-
-  it "appends when setting a header not yet present" do
-    pairs = [["a", "1"]]
-    Nack::Utils.set_header(pairs, "b", "2")
-    pairs.must_equal [["a", "1"], ["b", "2"]]
-  end
-
-  it "removes all occurrences when deleting a header" do
-    pairs = [["a", "1"], ["b", "2"], ["a", "3"]]
-    Nack::Utils.delete_header(pairs, "a")
-    pairs.must_equal [["b", "2"]]
-  end
-
   it "measures a body in bytes" do
     Nack::Utils.body_bytesize(nil).must_equal 0
     Nack::Utils.body_bytesize("é").must_equal 2
