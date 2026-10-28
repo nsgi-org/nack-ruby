@@ -12,7 +12,8 @@ module Nack
     end
 
     def valid_header_value?(value)
-      value.is_a?(String) && /\A(?![ \t])[^\0\n\r]*(?<![ \t])\z/n.match?(value.b)
+      value.is_a?(String) && !value.start_with?(" ", "\t") && !value.end_with?(" ", "\t") &&
+        !value.include?("\0") && !value.include?("\n") && !value.include?("\r")
     end
 
     def valid_status?(status)
