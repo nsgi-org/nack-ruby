@@ -61,7 +61,7 @@ describe Nack::Utils do
   it "replaces all occurrences when setting a header" do
     pairs = [["a", "1"], ["b", "2"], ["a", "3"]]
     Nack::Utils.set_header(pairs, "a", "4")
-    pairs.must_equal [["b", "2"], ["a", "4"]]
+    pairs.must_equal [["a", "4"], ["b", "2"]]
   end
 
   it "appends when setting a header not yet present" do
