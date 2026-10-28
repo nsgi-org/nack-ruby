@@ -27,7 +27,7 @@ describe Nack::Utils do
     pairs.must_equal [["b", "2"]]
   end
 
-  it "measures body size in bytes" do
+  it "measures a body in bytes" do
     Nack::Utils.body_bytesize(nil).must_equal 0
     Nack::Utils.body_bytesize("é").must_equal 2
     Nack::Utils.body_bytesize(IO::Buffer.for("é")).must_equal 2
