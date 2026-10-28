@@ -7,30 +7,6 @@ module Nack
   module Utils
     module_function
 
-    def get_header(pairs, name)
-      pairs.assoc(name)&.last
-    end
-
-    def set_header(pairs, name, value)
-      index = pairs.index { |key, _| key == name }
-      return pairs << [name, value] unless index
-      pairs[index] = [name, value]
-      i = index + 1
-      while i < pairs.size
-        if pairs[i][0] == name
-          pairs.delete_at(i)
-        else
-          i += 1
-        end
-      end
-      pairs
-    end
-
-    def delete_header(pairs, name)
-      pairs.reject! { |key, _| key == name }
-      pairs
-    end
-
     def body_bytesize(body)
       case body
       when nil then 0
