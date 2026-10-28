@@ -31,7 +31,7 @@ module Nack
       pairs
     end
 
-    def body_size(body)
+    def body_bytesize(body)
       case body
       when nil then 0
       when String then body.bytesize
@@ -39,7 +39,7 @@ module Nack
       end
     end
 
-    def body_to_string(body)
+    def read_body(body)
       case body
       when nil then "".b
       when String then body

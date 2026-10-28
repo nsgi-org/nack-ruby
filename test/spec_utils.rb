@@ -28,18 +28,18 @@ describe Nack::Utils do
   end
 
   it "measures body size in bytes" do
-    Nack::Utils.body_size(nil).must_equal 0
-    Nack::Utils.body_size("é").must_equal 2
-    Nack::Utils.body_size(IO::Buffer.for("é")).must_equal 2
-    Nack::Utils.body_size(["a"]).must_be_nil
+    Nack::Utils.body_bytesize(nil).must_equal 0
+    Nack::Utils.body_bytesize("é").must_equal 2
+    Nack::Utils.body_bytesize(IO::Buffer.for("é")).must_equal 2
+    Nack::Utils.body_bytesize(["a"]).must_be_nil
   end
 
   it "reads a body into a string" do
-    Nack::Utils.body_to_string(nil).must_equal ""
+    Nack::Utils.read_body(nil).must_equal ""
     body = "a"
-    Nack::Utils.body_to_string(body).must_be_same_as body
-    Nack::Utils.body_to_string(IO::Buffer.for("a")).must_equal "a"
-    Nack::Utils.body_to_string(["é", IO::Buffer.for("\xff")]).must_equal "é\xff".b
+    Nack::Utils.read_body(body).must_be_same_as body
+    Nack::Utils.read_body(IO::Buffer.for("a")).must_equal "a"
+    Nack::Utils.read_body(["é", IO::Buffer.for("\xff")]).must_equal "é\xff".b
   end
 
   it "closes a body whether or not reading it fails" do
@@ -53,10 +53,10 @@ describe Nack::Utils do
       end
     end
     succeeded = body_class.new
-    Nack::Utils.body_to_string(succeeded)
+    Nack::Utils.read_body(succeeded)
     succeeded.closed.must_equal true
     failed = body_class.new(RuntimeError)
-    -> { Nack::Utils.body_to_string(failed) }.must_raise RuntimeError
+    -> { Nack::Utils.read_body(failed) }.must_raise RuntimeError
     failed.closed.must_equal true
   end
 
