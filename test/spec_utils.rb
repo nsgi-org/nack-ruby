@@ -36,10 +36,21 @@ describe Nack::Utils do
     failed.closed.must_equal true
   end
 
-  it "escapes and unescapes form components" do
-    Nack::Utils.escape(" &é").must_equal "+%26%C3%A9"
-    Nack::Utils.unescape("+%26%C3%A9").must_equal " &é"
-    Nack::Utils.unescape("%E9", Encoding::ISO_8859_1).must_equal "é".encode(Encoding::ISO_8859_1)
+  it "escapes a form component per WHATWG" do
+    Nack::Utils.escape(" *~é").must_equal "+*%7E%C3%A9"
+    Nack::Utils.escape("\xff").must_equal "%EF%BF%BD"
+    Nack::Utils.escape("é".encode(Encoding::ISO_8859_1)).must_equal "%C3%A9"
+  end
+
+  it "escapes a binary string byte for byte" do
+    Nack::Utils.escape("\xff".b).must_equal "%FF"
+  end
+
+  it "unescapes a form component per WHATWG" do
+    Nack::Utils.unescape("+%c3%A9").must_equal " é"
+    Nack::Utils.unescape("%ag").must_equal "%ag"
+    Nack::Utils.unescape("%a").must_equal "%a"
+    Nack::Utils.unescape("\xff".b).must_equal "\uFFFD"
   end
 
   it "escapes HTML" do
