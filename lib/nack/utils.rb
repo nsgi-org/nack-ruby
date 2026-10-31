@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "cgi/escape"
-require "uri"
 
 module Nack
   module Utils
@@ -30,11 +29,20 @@ module Nack
     end
 
     def escape(string)
-      URI.encode_www_form_component(string)
+      string =
+        case string.encoding
+        when Encoding::BINARY then string
+        when Encoding::UTF_8 then string.valid_encoding? ? string : string.scrub
+        else string.ascii_only? ? string : string.encode(Encoding::UTF_8, invalid: :replace, undef: :replace)
+        end
+      escaped = CGI.escape(string)
+      # CGI.escape leaves ~ and encodes *; the WHATWG set is the reverse.
+      return escaped unless escaped.include?("%2A") || escaped.include?("~")
+      escaped.gsub(/%2A|~/, "%2A" => "*", "~" => "%7E")
     end
 
-    def unescape(string, encoding = Encoding::UTF_8)
-      URI.decode_www_form_component(string, encoding)
+    def unescape(string)
+      CGI.unescape(string).force_encoding(Encoding::UTF_8).scrub!
     end
 
     def escape_html(string)
