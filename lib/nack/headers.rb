@@ -42,6 +42,11 @@ module Nack
       self
     end
 
+    def delete_if(&block)
+      @fields.reject!(&block)
+      self
+    end
+
     def to_a
       @fields.dup
     end
