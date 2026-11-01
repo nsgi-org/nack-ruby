@@ -46,6 +46,12 @@ describe Nack::Headers do
     headers.to_a.must_equal [["b", "2"]]
   end
 
+  it "deletes the fields the block selects" do
+    headers = Nack::Headers.new([["a", "1"], ["b", "2"], ["a", "3"]])
+    headers.delete_if { |name, value| name == "a" && value == "3" }.must_be_same_as headers
+    headers.to_a.must_equal [["a", "1"], ["b", "2"]]
+  end
+
   it "does not alias the internal storage" do
     fields = [["a", "1"], ["b", "2"], ["a", "3"]]
     headers = Nack::Headers.new(fields).add("c", "4")
