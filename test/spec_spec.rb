@@ -52,18 +52,18 @@ describe Nack::Spec do
     Nack::Spec.valid_content_length?(:a).must_equal false
   end
 
-  it "knows which responses carry no entity body" do
+  it "knows which responses carry no content" do
     request = Struct.new(:request_method)
     get = request.new(IO::Buffer.for("GET"))
     head = request.new(IO::Buffer.for("HEAD"))
-    Nack::Spec.no_entity_body?(100, get).must_equal true
-    Nack::Spec.no_entity_body?(199, get).must_equal true
-    Nack::Spec.no_entity_body?(204, get).must_equal true
-    Nack::Spec.no_entity_body?(205, get).must_equal true
-    Nack::Spec.no_entity_body?(304, get).must_equal true
-    Nack::Spec.no_entity_body?(200, head).must_equal true
-    Nack::Spec.no_entity_body?(101, get).must_equal false
-    Nack::Spec.no_entity_body?(200, get).must_equal false
+    Nack::Spec.no_content?(100, get).must_equal true
+    Nack::Spec.no_content?(199, get).must_equal true
+    Nack::Spec.no_content?(204, get).must_equal true
+    Nack::Spec.no_content?(205, get).must_equal true
+    Nack::Spec.no_content?(304, get).must_equal true
+    Nack::Spec.no_content?(200, head).must_equal true
+    Nack::Spec.no_content?(101, get).must_equal false
+    Nack::Spec.no_content?(200, get).must_equal false
   end
 
   it "accepts interim statuses" do
