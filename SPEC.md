@@ -96,7 +96,7 @@ Requests that arrived on one connection MAY be in flight at the same time (secti
 
 `body` MUST be `nil` (empty), a `String` (its bytes are used as-is; encoding is not interpreted), an `IO::Buffer` (its backing bytes are used without an intermediate String), or an object responding to `#each`.
 
-The bridge enumerates such a body at most once: it calls `#each` with a block, and the body yields each chunk to that block as a `String` or an `IO::Buffer`. The block MAY take arbitrarily long to return, which is how the host's backpressure reaches the application. The bridge MUST NOT pass on a zero-length chunk. A response to HEAD, a 204 and a 304 carry no content, so the bridge need not enumerate their bodies.
+The bridge enumerates such a body at most once: it calls `#each` with a block, and the body yields each chunk to that block as a `String` or an `IO::Buffer`. The block MAY take arbitrarily long to return, which is how the host's backpressure reaches the application. The bridge MUST NOT pass on a zero-length chunk. A response to HEAD, a 204, a 205 and a 304 carry no content, so the bridge need not enumerate their bodies.
 
 The bridge MAY stop enumerating before the body is complete, so a body with side effects MUST tolerate being abandoned part-way. The bridge MUST call `#close` on a body that responds to it once it is finished with the body, whether or not it enumerated the body to completion.
 

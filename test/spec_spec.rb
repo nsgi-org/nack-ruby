@@ -59,6 +59,7 @@ describe Nack::Spec do
     Nack::Spec.no_entity_body?(100, get).must_equal true
     Nack::Spec.no_entity_body?(199, get).must_equal true
     Nack::Spec.no_entity_body?(204, get).must_equal true
+    Nack::Spec.no_entity_body?(205, get).must_equal true
     Nack::Spec.no_entity_body?(304, get).must_equal true
     Nack::Spec.no_entity_body?(200, head).must_equal true
     Nack::Spec.no_entity_body?(101, get).must_equal false
