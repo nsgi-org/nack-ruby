@@ -31,7 +31,7 @@ module Nack
 
     def no_entity_body?(status, request)
       request.request_method.get_string == "HEAD" ||
-        ((100..199).cover?(status) && status != 101) || status == 204 || status == 304
+        ((100..199).cover?(status) && status != 101) || status == 204 || status == 205 || status == 304
     end
 
     def valid_interim_status?(status)
