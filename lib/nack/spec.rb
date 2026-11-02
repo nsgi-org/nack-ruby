@@ -29,7 +29,7 @@ module Nack
       value.is_a?(String) && value.ascii_only? && /\A[0-9]+\z/.match?(value)
     end
 
-    def no_entity_body?(status, request)
+    def no_content?(status, request)
       request.request_method.get_string == "HEAD" ||
         ((100..199).cover?(status) && status != 101) || status == 204 || status == 205 || status == 304
     end
