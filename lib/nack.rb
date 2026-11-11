@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "nack/version"
+require_relative "nack/builder"
 require_relative "nack/component"
 require_relative "nack/error"
 require_relative "nack/headers"
