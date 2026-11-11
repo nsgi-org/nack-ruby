@@ -56,10 +56,4 @@ describe Nack::Utils do
   it "escapes HTML" do
     Nack::Utils.escape_html(%(&<>"')).must_equal "&amp;&lt;&gt;&quot;&#39;"
   end
-
-  it "resolves a class name against a prefix" do
-    Nack::Utils.load_class("Error", Nack).must_equal Nack::Error
-    Nack::Utils.load_class("::String", Nack).must_equal String
-    -> { Nack::Utils.load_class("String", Nack) }.must_raise NameError
-  end
 end

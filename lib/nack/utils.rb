@@ -48,13 +48,5 @@ module Nack
     def escape_html(string)
       CGI.escapeHTML(string)
     end
-
-    def load_class(name, prefix)
-      if name.start_with?("::")
-        Object.const_get(name.delete_prefix("::"))
-      else
-        prefix.const_get(name, false)
-      end
-    end
   end
 end
