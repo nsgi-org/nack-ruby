@@ -19,7 +19,7 @@ describe Nack::Response do
     Nack::Response.new(200, [["content-length", "-1"]]).content_length.must_be_nil
   end
 
-  it "rejects a content length other than a non-negative Integer" do
+  it "raises SpecError on a content length other than a non-negative Integer" do
     res = Nack::Response.new
     -> { res.content_length = -1 }.must_raise Nack::SpecError
     -> { res.content_length = "1" }.must_raise Nack::SpecError
