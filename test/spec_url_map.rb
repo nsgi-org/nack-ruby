@@ -15,6 +15,11 @@ describe Nack::URLMap do
     ["a", "///a", "//h:/", "//h:1"].each { |reference| -> { Nack::URLMap.new(reference => app(:a)) }.must_raise ArgumentError }
   end
 
+  it "rejects references naming the same mount, ignoring host case and a trailing slash" do
+    [["/a", "/a/"], ["//h/a", "//H/a"]].each { |references| -> { Nack::URLMap.new(references.to_h { [it, app(:a)] }) }.must_raise ArgumentError }
+    Nack::URLMap.new("/a" => app(:a), "//h/a" => app(:h)).call(request(authority: "h", path: "/a")).first.must_equal :h
+  end
+
   it "matches no prefix against authority-form and asterisk-form" do
     map = Nack::URLMap.new("/" => app(:root))
     [request(path: nil), request(path: "*")].each { map.call(it).first.must_equal 404 }

@@ -6,8 +6,12 @@ module Nack
     private_constant :Mount
 
     def initialize(mapping)
-      @mounts = mapping.map { |reference, app| mount(reference, app) }
-        .sort_by { [it.host ? 0 : 1, -it.prefix.bytesize] }.freeze
+      keys = Set.new
+      @mounts = mapping.map do |reference, app|
+        mount = mount(reference, app)
+        raise ArgumentError, "reference must name a distinct mount: #{reference.inspect}" unless keys.add?([mount.host&.downcase, mount.prefix])
+        mount
+      end.sort_by { [it.host ? 0 : 1, -it.prefix.bytesize] }.freeze
     end
 
     def call(request)
