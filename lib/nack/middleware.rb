@@ -7,13 +7,9 @@ module Nack
     end
 
     def wrap(app)
-      middleware = clone(freeze: false)
-      middleware.app = app
-      middleware
+      raise Error, "wrap called more than once" if @app
+      @app = app
+      self
     end
-
-    protected
-
-    attr_writer :app
   end
 end
