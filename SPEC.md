@@ -12,7 +12,7 @@ A Nack application is a Ruby object that responds to `#call` with one argument, 
 
 The response is handed over when `#call` returns, normally or by raising, or, for a deferred response, when the responder is called. The host has finished with the response once it has stopped reading the response body and, for a response that switches to a tunnel (section 6), `tunnel` has ended or raised.
 
-When an application is loaded from a file, the file's last expression MUST evaluate to the application object.
+When an application is loaded from a file, the file's last expression MUST evaluate to the application object, or to an object whose `#to_app` returns one. The bridge MUST call `#to_app` once on an object that responds to it, using the result as the application.
 
 ## 2. Fields
 
