@@ -12,7 +12,7 @@ A Nack application is a Ruby object that responds to `#call` with one argument, 
 
 The response is handed over when `#call` returns, normally or by raising, or, for a deferred response, when the responder is called. The host has finished with the response once it has stopped reading the response body and, for a response that switches to a tunnel (section 6), `tunnel` has ended or raised.
 
-When an application is loaded from a file, the file's last expression MUST evaluate to the application object, or to an object whose `#to_app` returns one. The bridge MUST call `#to_app` once on an object that responds to it, using the result as the application.
+When an application is loaded from a file, the file's last expression MUST evaluate to the application object, or to an object whose `#to_app` returns one. The bridge MUST call `#to_app` on such an object once in each Ractor that runs the application, and use the result there. When several Ractors run the application, the file's value MUST be shareable.
 
 ## 2. Fields
 
@@ -168,7 +168,7 @@ Response memory handed to the host is owned by the bridge, never by Ruby: bridge
 
 ## 8. Concurrency
 
-A bridge MAY be invoked concurrently by its host. A conforming bridge serializes application execution into a single Ruby execution context but MAY multiplex concurrent requests onto Fibers via a `Fiber::Scheduler`, so:
+A bridge MAY be invoked concurrently by its host. A conforming bridge serializes application execution in each Ractor into a single Ruby execution context but MAY multiplex concurrent requests onto Fibers via a `Fiber::Scheduler`, so:
 
 - The application MUST be fiber-reentrant: whenever it sleeps or waits on IO, another request may run before the wait returns. A `#read` is such a wait. Shared mutable state, including `connection`, needs the same care as under any cooperative scheduler.
 - The application MUST NOT assume two requests never interleave, and MUST NOT assume they run on different threads (thread-locals are shared; fiber-locals (`Thread#[]`) are per-request under fiber multiplexing).
