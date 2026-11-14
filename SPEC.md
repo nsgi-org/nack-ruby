@@ -157,6 +157,7 @@ Request accessors stay usable for these windows:
 
 Every buffer a request accessor returns is a read-only view over host memory. The application MUST NOT attempt to free, resize, or write through one, MUST copy any data it needs beyond the buffer's validity, and MUST NOT hand one back as part of a response. A buffer is valid while its accessor is usable, and no longer than:
 
+- for one obtained while `#call` runs, until `#call` returns;
 - for `variable`, until the next `variable` call for the same request;
 - for `trailers`, until the next `trailers` call for the same request;
 - for a chunk, until the next `#read` from the same stream.
