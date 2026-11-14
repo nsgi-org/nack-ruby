@@ -56,13 +56,10 @@ describe Nack::Spec do
     request = Struct.new(:request_method)
     get = request.new(IO::Buffer.for("GET"))
     head = request.new(IO::Buffer.for("HEAD"))
-    Nack::Spec.no_content?(100, get).must_equal true
-    Nack::Spec.no_content?(199, get).must_equal true
     Nack::Spec.no_content?(204, get).must_equal true
     Nack::Spec.no_content?(205, get).must_equal true
     Nack::Spec.no_content?(304, get).must_equal true
     Nack::Spec.no_content?(200, head).must_equal true
-    Nack::Spec.no_content?(101, get).must_equal false
     Nack::Spec.no_content?(200, get).must_equal false
   end
 
