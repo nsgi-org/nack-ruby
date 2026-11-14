@@ -152,7 +152,7 @@ A failed `tunnel` raises as section 3.4 describes, with one of:
 
 Request accessors stay usable for these windows:
 
-- `body`, `trailers`, `tunnel`, `variable` and `inform`, and the streams `body` and `tunnel` return, until the host has finished with the response, so the request and response bodies can stream at once.
+- `variable`, `body`, `trailers`, `inform` and `tunnel`, and the streams `body` and `tunnel` return, until the host has finished with the response, so the request and response bodies can stream at once.
 - Every other accessor, until `#call` returns.
 
 Every buffer a request accessor returns is a read-only view over host memory. The application MUST NOT attempt to free, resize, or write through one, MUST copy any data it needs beyond the buffer's validity, and MUST NOT hand one back as part of a response. A buffer is valid while its accessor is usable, and no longer than:
