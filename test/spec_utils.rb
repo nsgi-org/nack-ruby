@@ -58,9 +58,30 @@ describe Nack::Utils do
     mapped_responder = nil
     deferred = Nack::Utils.map_response(->(responder) { mapped_responder = responder }) { [it] }
     responded = nil
-    deferred.call(->(mapped) { responded = mapped })
+    deferred.call(->(argument) { responded = argument })
     mapped_responder.call(response)
     responded.must_equal [response]
+  end
+
+  it "passes an exception to the responder without mapping it" do
+    exception = RuntimeError.new
+    deferred = Nack::Utils.map_response(->(responder) { responder.call(exception) }) { [it] }
+    responded = nil
+    deferred.call(->(argument) { responded = argument })
+    responded.must_be_same_as exception
+  end
+
+  it "passes a StandardError the block raises to the responder" do
+    exception = RuntimeError.new
+    deferred = Nack::Utils.map_response(->(responder) { responder.call([200, [], nil]) }) { raise exception }
+    responded = nil
+    deferred.call(->(argument) { responded = argument })
+    responded.must_be_same_as exception
+  end
+
+  it "lets any other exception the block raises reach the caller of the responder" do
+    deferred = Nack::Utils.map_response(->(responder) { responder.call([200, [], nil]) }) { raise Exception } # standard:disable Lint/RaiseException
+    -> { deferred.call(->(_) {}) }.must_raise Exception
   end
 
   it "raises SpecError on a second call of the responder, without mapping again" do
@@ -85,11 +106,6 @@ describe Nack::Utils do
     deferred.call(->(_) {})
     cancelable.responder.call([200, [], nil])
     cancelable.canceled.must_be_nil
-  end
-
-  it "lets an exception from the block reach the caller of the responder" do
-    deferred = Nack::Utils.map_response(->(responder) { responder.call([200, [], nil]) }) { raise "" }
-    -> { deferred.call(->(_) {}) }.must_raise RuntimeError
   end
 
   it "escapes a form component per WHATWG" do
