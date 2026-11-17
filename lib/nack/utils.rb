@@ -18,7 +18,14 @@ module Nack
       def call(response)
         raise SpecError, "responder called more than once" if @called
         @called = true
-        @responder.call(@block.call(response))
+        if response.is_a?(Array)
+          response = begin
+            @block.call(response)
+          rescue => exception
+            exception
+          end
+        end
+        @responder.call(response)
       end
     end
     private_constant :MappedResponder
