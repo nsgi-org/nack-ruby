@@ -108,7 +108,7 @@ A body that responds to `#each` MAY also respond to `#trailers`, returning an `A
 
 A deferred response is an object responding to `#call` with one argument. The bridge MUST invoke it exactly once, passing a responder, and MUST NOT wait for the responder before returning control to the host.
 
-The responder is a callable taking one argument, the three-element Array of section 4. The application MUST call it exactly once; a second call MUST raise, and the first response stands.
+The responder is a callable taking one argument, either the three-element Array of section 4 or an `Exception`. The application MUST call it exactly once; a second call MUST raise, leaving the first in effect.
 
 The host MAY stop wanting the response. The bridge MAY then have `body` and `tunnel` raise, and call `#cancel` on a deferred response that responds to it, at most once, after invoking `#call` and before the responder is called.
 
@@ -182,7 +182,7 @@ The bridge MAY allow the application to supply its own conforming `Fiber::Schedu
 The bridge MUST catch any exception, including `Exception` subclasses outside `StandardError`, and MUST NOT let one crash or unwind into the host.
 
 - Bridge overload: the bridge MAY reject new requests with a 503 before dispatching them to the application.
-- Exception from `#call`, or from a deferred response before the responder is called: the bridge responds 500.
+- Exception raised from `#call` or from a deferred response before the responder is called, or passed to the responder: the bridge responds 500.
 - Request body failure the application did not rescue: the bridge MAY respond with the HTTP status matching the failure (section 3.4) rather than 500.
 - Deferred response never completed: the bridge MAY impose a deadline of its own and respond 500.
 - Malformed response, including a 101 that does not switch to a tunnel: the bridge SHOULD respond 500.
