@@ -3,6 +3,18 @@
 require_relative "helper"
 
 describe Nack::Utils do
+  def cancelable_deferred_response
+    Struct.new(:responder, :canceled) do
+      def call(responder)
+        self.responder = responder
+      end
+
+      def cancel
+        self.canceled = true
+      end
+    end.new
+  end
+
   it "measures a body in bytes" do
     Nack::Utils.body_bytesize(nil).must_equal 0
     Nack::Utils.body_bytesize("é").must_equal 2
@@ -34,6 +46,50 @@ describe Nack::Utils do
     failed = body_class.new(RuntimeError)
     -> { Nack::Utils.read_body(failed) }.must_raise RuntimeError
     failed.closed.must_equal true
+  end
+
+  it "maps an immediate response" do
+    response = [200, [], nil]
+    Nack::Utils.map_response(response) { [it] }.must_equal [response]
+  end
+
+  it "maps a deferred response when its responder is called" do
+    response = [200, [], nil]
+    mapped_responder = nil
+    deferred = Nack::Utils.map_response(->(responder) { mapped_responder = responder }) { [it] }
+    responded = nil
+    deferred.call(->(mapped) { responded = mapped })
+    mapped_responder.call(response)
+    responded.must_equal [response]
+  end
+
+  it "raises SpecError on a second call of the responder, without mapping again" do
+    calls = 0
+    deferred = Nack::Utils.map_response(->(responder) { 2.times { responder.call([200, [], nil]) } }) { calls += 1 }
+    -> { deferred.call(->(_) {}) }.must_raise Nack::SpecError
+    calls.must_equal 1
+  end
+
+  it "forwards #cancel only to a deferred response that responds to it" do
+    cancelable = cancelable_deferred_response
+    deferred = Nack::Utils.map_response(cancelable) {}
+    deferred.call(->(_) {})
+    deferred.cancel
+    cancelable.canceled.must_equal true
+    Nack::Utils.map_response(->(_) {}) {}.wont_respond_to :cancel
+  end
+
+  it "stops forwarding #cancel once the deferred response has called its responder" do
+    cancelable = cancelable_deferred_response
+    deferred = Nack::Utils.map_response(cancelable) { deferred.cancel }
+    deferred.call(->(_) {})
+    cancelable.responder.call([200, [], nil])
+    cancelable.canceled.must_be_nil
+  end
+
+  it "lets an exception from the block reach the caller of the responder" do
+    deferred = Nack::Utils.map_response(->(responder) { responder.call([200, [], nil]) }) { raise "" }
+    -> { deferred.call(->(_) {}) }.must_raise RuntimeError
   end
 
   it "escapes a form component per WHATWG" do
