@@ -4,6 +4,45 @@ require "cgi/escape"
 
 module Nack
   module Utils
+    class MappedResponder
+      def initialize(responder, block)
+        @responder = responder
+        @block = block
+        @called = false
+      end
+
+      def called?
+        @called
+      end
+
+      def call(response)
+        raise SpecError, "responder called more than once" if @called
+        @called = true
+        @responder.call(@block.call(response))
+      end
+    end
+    private_constant :MappedResponder
+
+    class MappedDeferredResponse
+      def initialize(deferred_response, block)
+        @deferred_response = deferred_response
+        @block = block
+      end
+
+      def call(responder)
+        @mapped_responder = MappedResponder.new(responder, @block)
+        @deferred_response.call(@mapped_responder)
+      end
+    end
+    private_constant :MappedDeferredResponse
+
+    class CancelableMappedDeferredResponse < MappedDeferredResponse
+      def cancel
+        @deferred_response.cancel unless @mapped_responder.called?
+      end
+    end
+    private_constant :CancelableMappedDeferredResponse
+
     module_function
 
     def body_bytesize(body)
@@ -26,6 +65,11 @@ module Nack
       end
     ensure
       body.close if body.respond_to?(:close)
+    end
+
+    def map_response(response, &block)
+      return yield(response) if response.is_a?(Array)
+      (response.respond_to?(:cancel) ? CancelableMappedDeferredResponse : MappedDeferredResponse).new(response, block)
     end
 
     def escape(string)
