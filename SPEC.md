@@ -129,7 +129,7 @@ A failed `inform` raises as section 3.4 describes, with one of:
 
 A final response can switch the exchange to a tunnel, a bidirectional byte stream that is no longer HTTP, such as a WebSocket. Two responses switch:
 
-- A 101 to an HTTP/1.1 request carrying `upgrade`, with an `upgrade` naming a protocol the request listed.
+- A 101 to an HTTP/1.1 request carrying `upgrade`, with an `upgrade` naming only protocols the request listed.
 - A 2xx to a CONNECT request on any version, including an extended CONNECT request.
 
 The host passes a CONNECT request to the application only when configured to, and otherwise answers 501.
