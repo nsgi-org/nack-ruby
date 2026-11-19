@@ -150,7 +150,7 @@ A failed `tunnel` raises as section 3.4 describes, with one of:
 
 ## 7. Memory
 
-Request accessors stay usable for these windows:
+Request accessors stay usable:
 
 - `variable`, `body`, `trailers`, `inform` and `tunnel`, and the streams `body` and `tunnel` return, until the host has finished with the response, so the request and response bodies can stream at once.
 - Every other accessor, until `#call` returns.
@@ -162,7 +162,7 @@ Every buffer a request accessor returns is a read-only view over host memory. Th
 - for `trailers`, until the next `trailers` call for the same request;
 - for a chunk, until the next `#read` from the same stream.
 
-Using an accessor, or a buffer, after its window has closed MUST NOT expose host memory; the bridge SHOULD raise instead. Buffers MAY be created lazily. Values that are not buffers are the bridge's own and outlive the request.
+Using an accessor once it is no longer usable, or a buffer once it is no longer valid, MUST NOT expose host memory; the bridge SHOULD raise instead. Buffers MAY be created lazily. Values that are not buffers are the bridge's own and outlive the request.
 
 Response memory handed to the host is owned by the bridge, never by Ruby: bridges MUST copy Ruby-provided bytes into memory that survives garbage collection and compaction, and MUST release it according to NSGI's lifetime rules. An `IO::Buffer` the application supplies in a response MUST remain valid until the bridge has finished with it.
 
