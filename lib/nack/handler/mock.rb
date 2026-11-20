@@ -22,6 +22,7 @@ module Nack
           @http_version = http_version
           @headers = headers
           @buffers = []
+          @call_fiber = nil
           @returned = false
           @handed_over = Thread::Queue.new
           @switched = false
@@ -35,10 +36,15 @@ module Nack
         end
 
         def invoke(app, request)
+          @call_fiber = Fiber.current
           app.call(request)
         ensure
           @returned = true
           @buffers.each(&:free)
+        end
+
+        def raise_if_from_call(name)
+          raise SpecError, "#{name} called from #call" if !@returned && Fiber.current == @call_fiber
         end
 
         def raise_if_returned(name)
@@ -120,6 +126,7 @@ module Nack
       class Tunnel < Stream
         def read
           @exchange.raise_if_finished(:read)
+          @exchange.raise_if_from_call(:read)
           raise Error, :tunnel_not_switched unless @exchange.switched?
           next_chunk
         end

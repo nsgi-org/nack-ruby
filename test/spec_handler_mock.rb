@@ -154,6 +154,10 @@ describe Nack::Handler::Mock do
     [response.body, conditions].must_equal ["b", [:tunnel_timeout, :tunnel_timeout]]
   end
 
+  it "raises SpecError for a tunnel read from #call" do
+    -> { respond { |request| request.tunnel.read } }.must_raise Nack::SpecError
+  end
+
   it "raises :tunnel_not_switched for a response that does not switch, including once #call raises" do
     [["GET", "/", 200], ["CONNECT", "a:1", 300]].each do |method, target, status|
       error = -> { respond(method, target) { |request| [status, [], Enumerator.new { request.tunnel.read }] } }.must_raise Nack::Handler::Mock::Error
