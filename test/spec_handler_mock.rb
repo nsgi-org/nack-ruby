@@ -114,11 +114,34 @@ describe Nack::Handler::Mock do
     error.condition.must_equal :inform_responded
   end
 
+  it "switches a 101 only for an HTTP/1.1 request listing every protocol its upgrade names, raising SpecError otherwise" do
+    respond("GET", "/", headers: [["upgrade", "a"], ["upgrade", "b, c"]]) { [101, [["upgrade", "C"]], nil] }.status.must_equal 101
+    [["HTTP/2", [["upgrade", "a"]], [["upgrade", "a"]]], ["HTTP/1.1", [], [["upgrade", "a"]]], ["HTTP/1.1", [["upgrade", "a"]], []],
+      ["HTTP/1.1", [["upgrade", "a"]], [["upgrade", "a, b"]]]].each do |http_version, headers, response_headers|
+      -> { respond("GET", "/", http_version:, headers:) { [101, response_headers, nil] } }.must_raise Nack::SpecError
+    end
+  end
+
+  it "closes the body of a 101 that does not switch without enumerating it" do
+    calls = []
+    body = Struct.new(:calls) do
+      def each
+        calls << :each
+      end
+
+      def close
+        calls << :close
+      end
+    end.new(calls)
+    -> { respond { [101, [], body] } }.must_raise Nack::SpecError
+    calls.must_equal [:close]
+  end
+
   it "delivers the tunnel once a switching response is handed over, then fails it with the condition given" do
-    response = respond("GET", "/", tunnel: ["a"]) do |request|
+    response = respond("GET", "/", headers: [["upgrade", "b"]], tunnel: ["a"]) do |request|
       reader = Thread.new { request.tunnel.read.get_string }
       Thread.pass until reader.stop?
-      [101, [], Enumerator.new { it << reader.value }]
+      [101, [["upgrade", "b"]], Enumerator.new { it << reader.value }]
     end
     response.body.must_equal "a"
     conditions = []
@@ -132,8 +155,10 @@ describe Nack::Handler::Mock do
   end
 
   it "raises :tunnel_not_switched for a response that does not switch, including once #call raises" do
-    error = -> { respond { |request| [200, [], Enumerator.new { request.tunnel.read }] } }.must_raise Nack::Handler::Mock::Error
-    error.condition.must_equal :tunnel_not_switched
+    [["GET", "/", 200], ["CONNECT", "a:1", 300]].each do |method, target, status|
+      error = -> { respond(method, target) { |request| [status, [], Enumerator.new { request.tunnel.read }] } }.must_raise Nack::Handler::Mock::Error
+      error.condition.must_equal :tunnel_not_switched
+    end
     reader = nil
     -> do
       respond do |request|

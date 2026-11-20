@@ -17,7 +17,10 @@ module Nack
       Response = Data.define(:status, :headers, :body, :trailers, :interim_responses)
 
       class Exchange
-        def initialize
+        def initialize(method, http_version, headers)
+          @method = method
+          @http_version = http_version
+          @headers = headers
           @buffers = []
           @returned = false
           @handed_over = Thread::Queue.new
@@ -42,8 +45,8 @@ module Nack
           raise SpecError, "#{name} called after #call has returned" if @returned
         end
 
-        def hand_over(switched)
-          @switched = switched
+        def hand_over(status, headers)
+          @switched = switches?(status, headers)
           @handed_over.close
         end
 
@@ -64,6 +67,20 @@ module Nack
 
         def raise_if_finished(name)
           raise SpecError, "#{name} called after the host has finished with the response" if @finished
+        end
+
+        private
+
+        def upgrades(headers)
+          headers.filter_map { |name, value| value if name == "upgrade" }.flat_map { it.split(",") }.map { it.strip.downcase }
+        end
+
+        def switches?(status, headers)
+          if status == 101
+            @http_version == "HTTP/1.1" && !(protocols = upgrades(headers)).empty? && (protocols - upgrades(@headers)).empty?
+          else
+            @method == "CONNECT" && (200..299).cover?(status)
+          end
         end
       end
       private_constant :Exchange
@@ -112,8 +129,8 @@ module Nack
       class Request
         TARGET = %r{\A(?:[A-Za-z][0-9A-Za-z+\-.]*://([^/?#@\s]+)|(?=/))(/[^?#\s]*)?(?:\?([^#\s]*))?\z}
 
-        def initialize(exchange, method, target, scheme: "http", http_version: "HTTP/1.1", remote_address: nil, remote_port: nil, local_address: nil,
-          local_port: nil, connection: {}, protocol: nil, headers: [], content_length: nil, variables: {}, body: [], body_error: nil,
+        def initialize(exchange, method, target, http_version:, headers:, scheme: "http", remote_address: nil, remote_port: nil,
+          local_address: nil, local_port: nil, connection: {}, protocol: nil, content_length: nil, variables: {}, body: [], body_error: nil,
           trailers: [], decline_informs: false, tunnel: [], tunnel_error: nil, &on_inform)
           if method == "CONNECT" && protocol.nil?
             authority = target
@@ -269,17 +286,21 @@ module Nack
         @app = app
       end
 
-      def request(method, target, **options)
-        exchange = Exchange.new
+      def request(method, target, http_version: "HTTP/1.1", headers: [], **options)
+        exchange = Exchange.new(method, http_version, headers)
         interim_responses = []
-        request = Request.new(exchange, method, target, **options) { |status, headers| interim_responses << [status, headers] }
+        request = Request.new(exchange, method, target, http_version:, headers:, **options) { |status, fields| interim_responses << [status, fields] }
         begin
-          status, headers, body = exchange.invoke(@app, request)
+          status, response_headers, body = exchange.invoke(@app, request)
         ensure
-          exchange.hand_over(status == 101 || (method == "CONNECT" && (200..299).cover?(status)))
+          exchange.hand_over(status, response_headers)
+        end
+        if status == 101 && !exchange.switched?
+          body.close if body.respond_to?(:close)
+          raise SpecError, "101 does not switch to a tunnel"
         end
         content, trailers = read_body(body)
-        Response.new(status:, headers: Headers.new(headers), body: content, trailers: Headers.new(trailers), interim_responses:)
+        Response.new(status:, headers: Headers.new(response_headers), body: content, trailers: Headers.new(trailers), interim_responses:)
       ensure
         exchange.finish
       end
