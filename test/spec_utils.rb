@@ -3,18 +3,6 @@
 require_relative "helper"
 
 describe Nack::Utils do
-  def cancelable_deferred_response
-    Struct.new(:responder, :canceled) do
-      def call(responder)
-        self.responder = responder
-      end
-
-      def cancel
-        self.canceled = true
-      end
-    end.new
-  end
-
   it "measures a body in bytes" do
     Nack::Utils.body_bytesize(nil).must_equal 0
     Nack::Utils.body_bytesize("é").must_equal 2
@@ -92,20 +80,14 @@ describe Nack::Utils do
   end
 
   it "forwards #cancel only to a deferred response that responds to it" do
-    cancelable = cancelable_deferred_response
-    deferred = Nack::Utils.map_response(cancelable) {}
-    deferred.call(->(_) {})
-    deferred.cancel
+    cancelable = Struct.new(:canceled) do
+      def cancel
+        self.canceled = true
+      end
+    end.new
+    Nack::Utils.map_response(cancelable) {}.cancel
     cancelable.canceled.must_equal true
     Nack::Utils.map_response(->(_) {}) {}.wont_respond_to :cancel
-  end
-
-  it "stops forwarding #cancel once the deferred response has called its responder" do
-    cancelable = cancelable_deferred_response
-    deferred = Nack::Utils.map_response(cancelable) { deferred.cancel }
-    deferred.call(->(_) {})
-    cancelable.responder.call([200, [], nil])
-    cancelable.canceled.must_be_nil
   end
 
   it "escapes a form component per WHATWG" do

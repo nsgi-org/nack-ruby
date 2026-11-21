@@ -108,12 +108,13 @@ describe Nack::Handler::Mock do
     end.status.must_equal 201
   end
 
-  it "calls #cancel on a deferred response that responds to it, given cancel:, only before its responder is called" do
+  it "calls #cancel on a deferred response that responds to it, given cancel:, once its #call has returned" do
     calls = []
     deferred = Struct.new(:calls, :responding) do
       def call(responder)
         @responder = responder
         responding.call(responder)
+        calls << :returned
       end
 
       def cancel
@@ -125,8 +126,7 @@ describe Nack::Handler::Mock do
     respond(cancel: true) { deferred.new(calls, ->(_) {}) }
     respond(cancel: true) { later }
     respond { deferred.new(calls, later) }
-    respond(cancel: true) { deferred.new(calls, ->(responder) { responder.call([200, [], nil]) }) }
-    calls.must_equal [:cancel]
+    calls.must_equal [:returned, :cancel, :returned]
   end
 
   it "records the interim responses it accepts, leaving out content-length" do

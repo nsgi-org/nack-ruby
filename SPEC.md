@@ -110,7 +110,7 @@ A deferred response is an object responding to `#call` with one argument. The br
 
 The responder is a callable taking one argument, either the three-element Array of section 4 or an `Exception`. The application MUST call it exactly once; a second call MUST raise, leaving the first in effect.
 
-The host MAY stop wanting the response. The bridge MAY then have `body` and `tunnel` raise, and call `#cancel` on a deferred response that responds to it, at most once, after invoking `#call` and before the responder is called.
+The host MAY stop wanting the response. The bridge MAY then have `body` and `tunnel` raise, and call `#cancel` on a deferred response that responds to it, at most once, after its `#call` has returned. `#cancel` may come while or after the responder is called, so a deferred response MUST NOT rely on it coming before.
 
 ## 5. Interim responses
 

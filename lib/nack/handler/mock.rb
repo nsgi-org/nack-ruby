@@ -324,7 +324,7 @@ module Nack
         response = exchange.invoke(@app, request)
         if response.respond_to?(:call)
           exchange.invoke_deferred(response)
-          response.cancel if cancel && !exchange.handed_over? && response.respond_to?(:cancel)
+          response.cancel if cancel && response.respond_to?(:cancel)
           response = exchange.response
           raise response if response.is_a?(Exception)
         end
