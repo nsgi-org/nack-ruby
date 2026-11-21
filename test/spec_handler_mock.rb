@@ -98,6 +98,37 @@ describe Nack::Handler::Mock do
     -> { respond { [200, [], [1]] } }.must_raise NoMethodError
   end
 
+  it "hands over the response a deferred response passes its responder, raising SpecError for a second call and leaving the first in effect" do
+    respond { ->(responder) { Thread.new { responder.call([201, [], nil]) } } }.status.must_equal 201
+    respond do
+      lambda do |responder|
+        responder.call([201, [], nil])
+        -> { responder.call([202, [], nil]) }.must_raise Nack::SpecError
+      end
+    end.status.must_equal 201
+  end
+
+  it "calls #cancel on a deferred response that responds to it, given cancel:, only before its responder is called" do
+    calls = []
+    deferred = Struct.new(:calls, :responding) do
+      def call(responder)
+        @responder = responder
+        responding.call(responder)
+      end
+
+      def cancel
+        calls << :cancel
+        @responder.call([200, [], nil])
+      end
+    end
+    later = ->(responder) { Thread.new { responder.call([200, [], nil]) } }
+    respond(cancel: true) { deferred.new(calls, ->(_) {}) }
+    respond(cancel: true) { later }
+    respond { deferred.new(calls, later) }
+    respond(cancel: true) { deferred.new(calls, ->(responder) { responder.call([200, [], nil]) }) }
+    calls.must_equal [:cancel]
+  end
+
   it "records the interim responses it accepts, leaving out content-length" do
     response = respond { |request| [200, [], request.inform(103, [["a", "1"], ["content-length", "0"]]).to_s] }
     [response.body, response.interim_responses.map { |status, headers| [status, headers.to_a] }].must_equal ["true", [[103, [["a", "1"]]]]]
@@ -152,30 +183,34 @@ describe Nack::Handler::Mock do
       end]
     end
     [response.body, conditions].must_equal ["b", [:tunnel_timeout, :tunnel_timeout]]
+    respond("CONNECT", "a:1", tunnel: ["c"]) do |request|
+      ->(responder) { responder.call([200, [], Enumerator.new { it << request.tunnel.read.get_string }]) }
+    end.body.must_equal "c"
   end
 
-  it "raises SpecError for a tunnel read from #call" do
+  it "raises SpecError for a tunnel read from #call or a deferred response's #call" do
     -> { respond { |request| request.tunnel.read } }.must_raise Nack::SpecError
+    -> { respond { |request| ->(_) { request.tunnel.read } } }.must_raise Nack::SpecError
   end
 
-  it "raises :tunnel_not_switched for a response that does not switch, including once #call raises" do
+  it "raises :tunnel_not_switched for a response that does not switch, including once #call or a deferred response raises" do
     [["GET", "/", 200], ["CONNECT", "a:1", 300]].each do |method, target, status|
       error = -> { respond(method, target) { |request| [status, [], Enumerator.new { request.tunnel.read }] } }.must_raise Nack::Handler::Mock::Error
       error.condition.must_equal :tunnel_not_switched
     end
-    reader = nil
-    -> do
-      respond do |request|
-        reader = Thread.new do
-          request.tunnel.read
-        rescue Nack::Handler::Mock::Error => exception
-          exception.condition
-        end
-        Thread.pass until reader.stop?
-        raise StandardError
+    readers = []
+    raising = lambda do |request|
+      readers << Thread.new do
+        request.tunnel.read
+      rescue Nack::Handler::Mock::Error => exception
+        exception.condition
       end
-    end.must_raise StandardError
-    reader.value.must_equal :tunnel_not_switched
+      Thread.pass until readers.last.stop?
+      raise StandardError
+    end
+    -> { respond(&raising) }.must_raise StandardError
+    -> { respond { |request| ->(_) { raising.call(request) } } }.must_raise StandardError
+    readers.map(&:value).must_equal [:tunnel_not_switched] * 2
   end
 
   it "hands out read-only buffers" do
@@ -224,7 +259,9 @@ describe Nack::Handler::Mock do
     -> { request.inform(103, []) }.must_raise Nack::SpecError
   end
 
-  it "reraises an exception raised from #call" do
-    -> { respond { raise StandardError } }.must_raise StandardError
+  it "reraises an exception raised from #call or passed to a deferred response's responder" do
+    error = StandardError.new
+    (-> { respond { raise error } }.must_raise StandardError).must_be_same_as error
+    (-> { respond { ->(responder) { responder.call(error) } } }.must_raise StandardError).must_be_same_as error
   end
 end

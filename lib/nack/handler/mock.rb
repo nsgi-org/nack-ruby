@@ -25,6 +25,7 @@ module Nack
           @call_fiber = nil
           @returned = false
           @handed_over = Thread::Queue.new
+          @response = nil
           @switched = false
           @finished = false
         end
@@ -37,38 +38,53 @@ module Nack
 
         def invoke(app, request)
           @call_fiber = Fiber.current
-          app.call(request)
+          response = app.call(request)
         ensure
+          @call_fiber = nil
           @returned = true
           @buffers.each(&:free)
+          hand_over(response) unless response.respond_to?(:call)
+        end
+
+        def invoke_deferred(deferred)
+          @call_fiber = Fiber.current
+          deferred.call(lambda do |response|
+            raise SpecError, "responder called after the response has been handed over" if handed_over?
+            hand_over(response)
+          end)
+        ensure
+          @call_fiber = nil
         end
 
         def raise_if_from_call(name)
-          raise SpecError, "#{name} called from #call" if !@returned && Fiber.current == @call_fiber
+          raise SpecError, "#{name} called from #call" if Fiber.current == @call_fiber
         end
 
         def raise_if_returned(name)
           raise SpecError, "#{name} called after #call has returned" if @returned
         end
 
-        def hand_over(status, headers)
-          @switched = switches?(status, headers)
-          @handed_over.close
-        end
-
         def handed_over?
           @handed_over.closed?
         end
 
-        # Waits until the response is handed over.
-        def switched?
+        def wait_until_handed_over
           @handed_over.pop
+        end
+
+        def response
+          wait_until_handed_over
+          @response
+        end
+
+        def switched?
           @switched
         end
 
         def finish
           @finished = true
           @buffers.each(&:free)
+          @handed_over.close
         end
 
         def raise_if_finished(name)
@@ -76,6 +92,13 @@ module Nack
         end
 
         private
+
+        def hand_over(response)
+          @response = response
+          status, headers = response if response.is_a?(Array)
+          @switched = switches?(status, headers)
+          @handed_over.close
+        end
 
         def upgrades(headers)
           headers.filter_map { |name, value| value if name == "upgrade" }.flat_map { it.split(",") }.map { it.strip.downcase }
@@ -127,6 +150,7 @@ module Nack
         def read
           @exchange.raise_if_finished(:read)
           @exchange.raise_if_from_call(:read)
+          @exchange.wait_until_handed_over
           raise Error, :tunnel_not_switched unless @exchange.switched?
           next_chunk
         end
@@ -293,15 +317,18 @@ module Nack
         @app = app
       end
 
-      def request(method, target, http_version: "HTTP/1.1", headers: [], **options)
+      def request(method, target, http_version: "HTTP/1.1", headers: [], cancel: false, **options)
         exchange = Exchange.new(method, http_version, headers)
         interim_responses = []
         request = Request.new(exchange, method, target, http_version:, headers:, **options) { |status, fields| interim_responses << [status, fields] }
-        begin
-          status, response_headers, body = exchange.invoke(@app, request)
-        ensure
-          exchange.hand_over(status, response_headers)
+        response = exchange.invoke(@app, request)
+        if response.respond_to?(:call)
+          exchange.invoke_deferred(response)
+          response.cancel if cancel && !exchange.handed_over? && response.respond_to?(:cancel)
+          response = exchange.response
+          raise response if response.is_a?(Exception)
         end
+        status, response_headers, body = response
         if status == 101 && !exchange.switched?
           body.close if body.respond_to?(:close)
           raise SpecError, "101 does not switch to a tunnel"
