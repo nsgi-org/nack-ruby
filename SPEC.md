@@ -138,7 +138,7 @@ The host passes a CONNECT request to the application only when configured to, an
 
 Each direction closes on its own: the response body completing closes the host's sending direction, `tunnel` ending reports that the client closed its own, and a response body failure aborts both. The host keeps the response until `tunnel` has ended or raised, so the application can go on reading after closing its own direction. It MAY instead abandon the tunnel, such as one the application stops reading.
 
-The tunnel makes no progress until the response has been handed over, so the application reads it from the response body or a Fiber of its own, not from `#call`.
+The tunnel makes no progress until the response has been handed over, so the application reads it where waiting for that does not hold up the response, such as from the response body, not from `#call`.
 
 A failed `tunnel` raises as section 3.4 describes, with one of:
 
