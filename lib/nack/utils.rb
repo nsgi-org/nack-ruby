@@ -11,10 +11,6 @@ module Nack
         @called = false
       end
 
-      def called?
-        @called
-      end
-
       def call(response)
         raise SpecError, "responder called more than once" if @called
         @called = true
@@ -37,15 +33,14 @@ module Nack
       end
 
       def call(responder)
-        @mapped_responder = MappedResponder.new(responder, @block)
-        @deferred_response.call(@mapped_responder)
+        @deferred_response.call(MappedResponder.new(responder, @block))
       end
     end
     private_constant :MappedDeferredResponse
 
     class CancelableMappedDeferredResponse < MappedDeferredResponse
       def cancel
-        @deferred_response.cancel unless @mapped_responder.called?
+        @deferred_response.cancel
       end
     end
     private_constant :CancelableMappedDeferredResponse
