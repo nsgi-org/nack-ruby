@@ -183,6 +183,7 @@ The bridge MUST catch any exception, including `Exception` subclasses outside `S
 
 - Bridge overload: the bridge MAY reject new requests with a 503 before dispatching them to the application.
 - Exception raised from `#call` or from a deferred response before the responder is called, or passed to the responder: the bridge responds 500.
+- Exception raised from a deferred response after the responder is called, from `#cancel`, or from `#close`: the bridge leaves the response unaffected.
 - Request body failure the application did not rescue: the bridge MAY respond with the HTTP status matching the failure (section 3.4) rather than 500.
 - Deferred response never completed: the bridge MAY impose a deadline of its own and respond 500.
 - Malformed response, including a 101 that does not switch to a tunnel: the bridge SHOULD respond 500.
