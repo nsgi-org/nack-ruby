@@ -24,6 +24,7 @@ module Nack
           @buffers = []
           @call_fiber = nil
           @returned = false
+          @responder_lock = Thread::Mutex.new
           @handed_over = Thread::Queue.new
           @response = nil
           @switched = false
@@ -49,8 +50,10 @@ module Nack
         def invoke_deferred(deferred)
           @call_fiber = Fiber.current
           deferred.call(lambda do |response|
-            raise SpecError, "responder called after the response has been handed over" if handed_over?
-            hand_over(response)
+            @responder_lock.synchronize do
+              raise SpecError, "responder called after the response has been handed over" if handed_over?
+              hand_over(response)
+            end
           end)
         ensure
           @call_fiber = nil
