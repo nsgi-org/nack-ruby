@@ -23,7 +23,7 @@ describe Nack::Handler::Mock do
       [request.request_method.get_string, request.authority, request.path.get_string, request.query.get_string]
     end.must_equal ["GET", nil, "/a", "b"]
     observe("GET", "/a?") { it.query }.must_be_nil
-    observe("GET", "/", headers: [["host", "a"]]) { it.authority.get_string }.must_equal "a"
+    observe("GET", "/", headers: [["host", "a"]]) { [it.authority.get_string, it.headers] }.must_equal ["a", []]
     observe("GET", "/", headers: [["host", ""]]) { it.authority }.must_be_nil
   end
 
@@ -57,8 +57,22 @@ describe Nack::Handler::Mock do
     -> { respond("GET", "*") }.must_raise ArgumentError
   end
 
-  it "rejects an invalid host, even one the target overrides" do
+  it "rejects an invalid host, even one the target overrides, and a second host" do
     -> { respond("GET", "http://a", headers: [["host", "u@a"]]) }.must_raise ArgumentError
+    -> { respond("GET", "/", headers: [["host", "a"], ["host", "a"]]) }.must_raise ArgumentError
+  end
+
+  it "joins the cookie fields of an HTTP/2 or HTTP/3 request, leaving a single one in place" do
+    fields = [["cookie", "a"], ["b", "1"], ["cookie", "c"]]
+    [["HTTP/1.1", fields], ["HTTP/2", fields], ["HTTP/3", fields], ["HTTP/2", fields[0, 2]]].map do |http_version, headers|
+      observe("GET", "/", http_version:, headers:) { |request| request.headers.map { |field| field.map(&:get_string) } }
+    end.must_equal [fields, [["b", "1"], ["cookie", "a; c"]], [["b", "1"], ["cookie", "a; c"]], fields[0, 2]]
+  end
+
+  it "rejects an invalid header field, content-length or transfer-encoding" do
+    [[":a", "1"], ["content-length", "0"], ["transfer-encoding", "chunked"]].each do |field|
+      -> { respond("GET", "/", headers: [field]) }.must_raise ArgumentError
+    end
   end
 
   it "passes the options to the request" do
@@ -92,6 +106,10 @@ describe Nack::Handler::Mock do
       request.body.read
       [condition, request.trailers.map { |field| field.map(&:get_string) }]
     end.must_equal [:trailers_incomplete, [["a", "1"]]]
+  end
+
+  it "rejects an invalid trailer field" do
+    -> { respond("POST", "/", trailers: [[":a", "1"]]) }.must_raise ArgumentError
   end
 
   it "reads the response, its body to the end, and its trailers before closing it" do
