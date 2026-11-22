@@ -3,6 +3,20 @@
 require_relative "helper"
 
 describe Nack::Spec do
+  it "accepts authorities that are a host with an optional port" do
+    Nack::Spec.valid_authority?("[::]").must_equal true
+    Nack::Spec.valid_authority?("[v09AFaf.09AZaz_-.~!$&'()*+,;=:]").must_equal true
+    Nack::Spec.valid_authority?("09AZaz_-.~!$&'()*+,;=%41:09").must_equal true
+    Nack::Spec.valid_authority?("a:").must_equal true
+    Nack::Spec.valid_authority?("").must_equal false
+    Nack::Spec.valid_authority?("u@a").must_equal false
+    Nack::Spec.valid_authority?("%4").must_equal false
+    Nack::Spec.valid_authority?("a:b").must_equal false
+    Nack::Spec.valid_authority?("[1.2.3.4]").must_equal false
+    Nack::Spec.valid_authority?("[:::]").must_equal false
+    Nack::Spec.valid_authority?("[::%1]").must_equal false
+  end
+
   it "accepts header names that are lowercase tokens" do
     Nack::Spec.valid_header_name?("09az!#$%&'*+-.^_`|~").must_equal true
     Nack::Spec.valid_header_name?("").must_equal false

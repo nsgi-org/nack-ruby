@@ -1,8 +1,19 @@
 # frozen_string_literal: true
 
+require "ipaddr"
+
 module Nack
   module Spec
+    AUTHORITY = /\A(?:\[(?:(?<ipv6>[\h:.]+)|v\h+\.[\w\-.~!$&'()*+,;=:]+)\]|(?:[\w\-.~!$&'()*+,;=]|%\h\h)+)(?::\d*)?\z/
+
     module_function
+
+    def valid_authority?(authority)
+      match = AUTHORITY.match(authority) or return false
+      match[:ipv6].nil? || IPAddr.new(match[:ipv6]).ipv6?
+    rescue IPAddr::InvalidAddressError
+      false
+    end
 
     def valid_header_name?(name)
       name.is_a?(String) && name.ascii_only? && /\A[0-9a-z!#$%&'*+\-.^_`|~]+\z/.match?(name)
