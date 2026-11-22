@@ -179,10 +179,18 @@ module Nack
             authority.nil? || Spec.valid_authority?(authority)
           end
           valid or raise ArgumentError, "invalid request target: #{target.inspect}"
-          if (host = headers.assoc("host")&.last) && !host.empty?
+          headers.each { |field| valid_field?(field) or raise ArgumentError, "invalid header field: #{field.inspect}" }
+          if %w[HTTP/2 HTTP/3].include?(http_version) && (cookies = headers.select { |name,| name == "cookie" }).size > 1
+            headers = headers - cookies + [["cookie", cookies.map(&:last).join("; ")]]
+          end
+          hosts, headers = headers.partition { |name,| name == "host" }
+          raise ArgumentError, "more than one host given" if hosts.size > 1
+          if (host = hosts.dig(0, 1)) && !host.empty?
             Spec.valid_authority?(host) or raise ArgumentError, "invalid host: #{host.inspect}"
             authority ||= host
           end
+          %w[content-length transfer-encoding].each { |name| raise ArgumentError, "#{name} given as a header" if headers.assoc(name) }
+          trailers.each { |field| valid_field?(field) or raise ArgumentError, "invalid trailer field: #{field.inspect}" }
           @exchange = exchange
           @scheme = scheme
           @http_version = http_version
@@ -313,11 +321,13 @@ module Nack
 
         private
 
+        def valid_field?(field)
+          field.is_a?(Array) && field.size == 2 && Spec.valid_header_name?(field[0]) && Spec.valid_header_value?(field[1])
+        end
+
         def valid_interim_response?(status, headers)
-          Spec.valid_interim_status?(status) && headers.is_a?(Array) && headers.all? do |field|
-            field.is_a?(Array) && field.size == 2 && Spec.valid_header_name?(field[0]) &&
-              Spec.valid_header_value?(field[1]) && !Spec.connection_header?(field[0], status)
-          end
+          Spec.valid_interim_status?(status) && headers.is_a?(Array) &&
+            headers.all? { |field| valid_field?(field) && !Spec.connection_header?(field[0], status) }
         end
       end
       private_constant :Request
