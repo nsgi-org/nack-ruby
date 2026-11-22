@@ -24,20 +24,41 @@ describe Nack::Handler::Mock do
     end.must_equal ["GET", nil, "/a", "b"]
     observe("GET", "/a?") { it.query }.must_be_nil
     observe("GET", "/", headers: [["host", "a"]]) { it.authority.get_string }.must_equal "a"
+    observe("GET", "/", headers: [["host", ""]]) { it.authority }.must_be_nil
   end
 
-  it "builds a request from an absolute-form target, keeping the scheme of the hop" do
-    observe("GET", "https://a") { [it.scheme, it.authority.get_string, it.path.get_string, it.query] }.must_equal ["http", "a", "/", nil]
+  it "builds a request from an absolute-form target, keeping the scheme of the hop and ignoring the host" do
+    observe("GET", "https://a", headers: [["host", "b"]]) do
+      [it.scheme, it.authority.get_string, it.path.get_string, it.query]
+    end.must_equal ["http", "a", "/", nil]
+  end
+
+  it "gives an absolute-form target with an empty path a path of * only for an OPTIONS request carrying no query" do
+    ["http://a", "http://a?"].map { |target| observe("OPTIONS", target) { it.path.get_string } }.must_equal ["*", "/"]
   end
 
   it "builds a request from an authority-form or asterisk-form target" do
     observe("CONNECT", "a:1") { [it.authority.get_string, it.path, it.query] }.must_equal ["a:1", nil, nil]
-    observe("CONNECT", "https://a/b", protocol: "websocket") { [it.protocol.get_string, it.path.get_string] }.must_equal ["websocket", "/b"]
     observe("OPTIONS", "*") { [it.authority, it.path.get_string] }.must_equal [nil, "*"]
   end
 
+  it "accepts a protocol only on an HTTP/2 or HTTP/3 CONNECT request" do
+    %w[HTTP/2 HTTP/3].map do |http_version|
+      observe("CONNECT", "https://a/b", http_version:, protocol: "websocket") { [it.protocol.get_string, it.path.get_string] }
+    end.must_equal [["websocket", "/b"]] * 2
+    [["CONNECT", "HTTP/1.1"], ["GET", "HTTP/2"]].each do |method, http_version|
+      -> { respond(method, "https://a/b", http_version:, protocol: "websocket") }.must_raise ArgumentError
+    end
+  end
+
   it "rejects an invalid request target" do
-    ["?a", "http://u@a", "http:///", "http:// ", "/ ", "/? ", "/#a"].each { |target| -> { respond("GET", target) }.must_raise ArgumentError }
+    ["?a", "http://u@a", "/ ", "/\0", "/? ", "/?\0", "/#a"].each { |target| -> { respond("GET", target) }.must_raise ArgumentError }
+    [":1", "a"].each { |target| -> { respond("CONNECT", target) }.must_raise ArgumentError }
+    -> { respond("GET", "*") }.must_raise ArgumentError
+  end
+
+  it "rejects an invalid host, even one the target overrides" do
+    -> { respond("GET", "http://a", headers: [["host", "u@a"]]) }.must_raise ArgumentError
   end
 
   it "passes the options to the request" do

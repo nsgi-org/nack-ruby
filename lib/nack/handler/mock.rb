@@ -158,22 +158,31 @@ module Nack
       private_constant :Tunnel
 
       class Request
-        TARGET = %r{\A(?:[A-Za-z][0-9A-Za-z+\-.]*://([^/?#@\s]+)|(?=/))(/[^?#\s]*)?(?:\?([^#\s]*))?\z}
+        TARGET = %r{\A(?:[A-Za-z][0-9A-Za-z+\-.]*://([^/?#]*)|(?=/))(/[^\s\0?#]*)?(?:\?([^\s\0#]*))?\z}
 
         def initialize(exchange, method, target, http_version:, headers:, scheme: "http", remote_address: nil, remote_port: nil,
           local_address: nil, local_port: nil, connection: {}, protocol: nil, content_length: nil, variables: {}, body: [], body_error: nil,
           trailers: [], decline_informs: false, tunnel: [], tunnel_error: nil, &on_inform)
-          if method == "CONNECT" && protocol.nil?
+          if protocol && !(method == "CONNECT" && %w[HTTP/2 HTTP/3].include?(http_version))
+            raise ArgumentError, "protocol given for a #{method} request over #{http_version}"
+          end
+          valid = if method == "CONNECT" && protocol.nil?
             authority = target
+            Spec.valid_authority?(authority) && authority.match?(/:\d*\z/)
           elsif target == "*"
             path = target
-          else
-            match = TARGET.match(target) or raise ArgumentError, "invalid request target: #{target.inspect}"
+            method == "OPTIONS"
+          elsif (match = TARGET.match(target))
             authority, path, query = match.captures
-            path ||= "/"
+            path ||= (method == "OPTIONS" && query.nil?) ? "*" : "/"
             query = nil if query == ""
+            authority.nil? || Spec.valid_authority?(authority)
           end
-          authority ||= headers.assoc("host")&.last
+          valid or raise ArgumentError, "invalid request target: #{target.inspect}"
+          if (host = headers.assoc("host")&.last) && !host.empty?
+            Spec.valid_authority?(host) or raise ArgumentError, "invalid host: #{host.inspect}"
+            authority ||= host
+          end
           @exchange = exchange
           @scheme = scheme
           @http_version = http_version
