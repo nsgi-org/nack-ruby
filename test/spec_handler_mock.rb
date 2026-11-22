@@ -42,13 +42,14 @@ describe Nack::Handler::Mock do
     observe("OPTIONS", "*") { [it.authority, it.path.get_string] }.must_equal [nil, "*"]
   end
 
-  it "accepts a protocol only on an HTTP/2 or HTTP/3 CONNECT request" do
+  it "accepts a protocol that is message text only on an HTTP/2 or HTTP/3 CONNECT request" do
     %w[HTTP/2 HTTP/3].map do |http_version|
       observe("CONNECT", "https://a/b", http_version:, protocol: "websocket") { [it.protocol.get_string, it.path.get_string] }
     end.must_equal [["websocket", "/b"]] * 2
     [["CONNECT", "HTTP/1.1"], ["GET", "HTTP/2"]].each do |method, http_version|
       -> { respond(method, "https://a/b", http_version:, protocol: "websocket") }.must_raise ArgumentError
     end
+    -> { respond("CONNECT", "https://a/b", http_version: "HTTP/2", protocol: " a") }.must_raise ArgumentError
   end
 
   it "rejects an invalid request target" do
@@ -84,6 +85,18 @@ describe Nack::Handler::Mock do
     end.must_equal ["https", "HTTP/2", "::1", 3, "::2", 5, connection, [["a", "1"]], 2, "4", nil]
   end
 
+  it "accepts no scheme, and each HTTP version SPEC.md section 3 names or none" do
+    observe("GET", "/", scheme: nil) { it.scheme }.must_be_nil
+    versions = [nil, "HTTP/1.0", "HTTP/1.1", "HTTP/2", "HTTP/3"]
+    versions.map { |http_version| observe("GET", "/", http_version:) { it.http_version } }.must_equal versions
+  end
+
+  it "rejects an invalid scheme, HTTP version or method" do
+    -> { respond("GET", "/", scheme: "A") }.must_raise ArgumentError
+    -> { respond("GET", "/", http_version: "HTTP/2.0") }.must_raise ArgumentError
+    -> { respond("", "/") }.must_raise ArgumentError
+  end
+
   it "exposes only the methods SPEC.md section 3 gives the request and its streams" do
     observe("GET", "/") do |request|
       [request, request.body, request.tunnel].map { (it.public_methods - Object.public_instance_methods).sort }
@@ -98,6 +111,11 @@ describe Nack::Handler::Mock do
       2.times.map { -> { request.body.read }.must_raise Nack::Handler::Mock::Error }
     end
     errors.map { [it.condition, it.is_a?(StandardError), it.is_a?(Nack::Error)] }.must_equal [[:body_timeout, true, false]] * 2
+  end
+
+  it "rejects a zero-length body or tunnel chunk" do
+    -> { respond("POST", "/", body: [""]) }.must_raise ArgumentError
+    -> { respond("CONNECT", "a:1", tunnel: [""]) }.must_raise ArgumentError
   end
 
   it "raises :trailers_incomplete until the body has ended" do
@@ -250,6 +268,14 @@ describe Nack::Handler::Mock do
     -> { respond(&raising) }.must_raise StandardError
     -> { respond { |request| ->(_) { raising.call(request) } } }.must_raise StandardError
     readers.map(&:value).must_equal [:tunnel_not_switched] * 2
+  end
+
+  it "accepts only a condition SPEC.md gives a failed body or tunnel" do
+    %i[body_terminated body_malformed body_too_large body_timeout].map { |body_error| respond("POST", "/", body_error:) { [200, [], nil] }.status }
+      .must_equal [200] * 4
+    %i[tunnel_terminated tunnel_timeout].map { |tunnel_error| respond("CONNECT", "a:1", tunnel_error:) { [200, [], nil] }.status }.must_equal [200] * 2
+    -> { respond("POST", "/", body_error: :trailers_incomplete) }.must_raise ArgumentError
+    -> { respond("CONNECT", "a:1", tunnel_error: :tunnel_not_switched) }.must_raise ArgumentError
   end
 
   it "hands out read-only buffers" do

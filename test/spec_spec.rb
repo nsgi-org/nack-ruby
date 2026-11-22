@@ -3,6 +3,20 @@
 require_relative "helper"
 
 describe Nack::Spec do
+  it "accepts schemes that are lowercase" do
+    Nack::Spec.valid_scheme?("az09+-.").must_equal true
+    Nack::Spec.valid_scheme?("").must_equal false
+    Nack::Spec.valid_scheme?("0").must_equal false
+    Nack::Spec.valid_scheme?("A").must_equal false
+    Nack::Spec.valid_scheme?("aA").must_equal false
+  end
+
+  it "accepts methods that are tokens" do
+    Nack::Spec.valid_method?("09AZaz!#$%&'*+-.^_`|~").must_equal true
+    Nack::Spec.valid_method?("").must_equal false
+    Nack::Spec.valid_method?("a a").must_equal false
+  end
+
   it "accepts authorities that are a host with an optional port" do
     Nack::Spec.valid_authority?("[::]").must_equal true
     Nack::Spec.valid_authority?("[v09AFaf.09AZaz_-.~!$&'()*+,;=:]").must_equal true

@@ -163,6 +163,10 @@ module Nack
         def initialize(exchange, method, target, http_version:, headers:, scheme: "http", remote_address: nil, remote_port: nil,
           local_address: nil, local_port: nil, connection: {}, protocol: nil, content_length: nil, variables: {}, body: [], body_error: nil,
           trailers: [], decline_informs: false, tunnel: [], tunnel_error: nil, &on_inform)
+          scheme.nil? || Spec.valid_scheme?(scheme) or raise ArgumentError, "invalid scheme: #{scheme.inspect}"
+          [nil, "HTTP/1.0", "HTTP/1.1", "HTTP/2", "HTTP/3"].include?(http_version) or raise ArgumentError, "invalid HTTP version: #{http_version.inspect}"
+          Spec.valid_method?(method) or raise ArgumentError, "invalid method: #{method.inspect}"
+          protocol.nil? || Spec.valid_header_value?(protocol) or raise ArgumentError, "invalid protocol: #{protocol.inspect}"
           if protocol && !(method == "CONNECT" && %w[HTTP/2 HTTP/3].include?(http_version))
             raise ArgumentError, "protocol given for a #{method} request over #{http_version}"
           end
@@ -190,7 +194,12 @@ module Nack
             authority ||= host
           end
           %w[content-length transfer-encoding].each { |name| raise ArgumentError, "#{name} given as a header" if headers.assoc(name) }
+          raise ArgumentError, "zero-length body chunk given" if body.any?(&:empty?)
+          [nil, :body_terminated, :body_malformed, :body_too_large, :body_timeout].include?(body_error) or
+            raise ArgumentError, "invalid body error: #{body_error.inspect}"
           trailers.each { |field| valid_field?(field) or raise ArgumentError, "invalid trailer field: #{field.inspect}" }
+          raise ArgumentError, "zero-length tunnel chunk given" if tunnel.any?(&:empty?)
+          [nil, :tunnel_terminated, :tunnel_timeout].include?(tunnel_error) or raise ArgumentError, "invalid tunnel error: #{tunnel_error.inspect}"
           @exchange = exchange
           @scheme = scheme
           @http_version = http_version

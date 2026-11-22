@@ -8,6 +8,14 @@ module Nack
 
     module_function
 
+    def valid_scheme?(scheme)
+      /\A[a-z][0-9a-z+\-.]*\z/.match?(scheme)
+    end
+
+    def valid_method?(method)
+      /\A[0-9A-Za-z!#$%&'*+\-.^_`|~]+\z/.match?(method)
+    end
+
     def valid_authority?(authority)
       match = AUTHORITY.match(authority) or return false
       match[:ipv6].nil? || IPAddr.new(match[:ipv6]).ipv6?
