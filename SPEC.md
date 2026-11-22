@@ -58,7 +58,7 @@ Requests that arrived on one connection MAY be in flight at the same time (secti
 
 `body` returns a stream delivering the request content, never `nil`. A stream provides at least:
 
-- `read` (`IO::Buffer` or `nil`): The next chunk, in the order the bytes arrived. `nil` once the stream has ended, raising once it has failed (section 3.4).
+- `read` (`IO::Buffer` or `nil`): The next chunk, never zero-length, in the order the bytes arrived. `nil` once the stream has ended, raising once it has failed (section 3.4).
 
 `#read` waits for one of these and MUST NOT report that no bytes are available at this moment, the host's wakeups being the bridge's to use. Each call moves past one chunk rather than returning a requested number of bytes, and chunk boundaries carry no meaning.
 
