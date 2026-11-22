@@ -33,7 +33,7 @@ The request object passed to `#call` provides at least these methods:
 - `local_address` (`String` or `nil`): The address the connection was accepted on, in the forms of `remote_address`.
 - `local_port` (`Integer` or `nil`): The port of `local_address`, as `remote_port` is of `remote_address`.
 - `connection` (`Hash`): Per-connection state (section 3.1).
-- `request_method` (`IO::Buffer`): The method, e.g. `GET`.
+- `request_method` (`IO::Buffer`): The method, a token (RFC 9110, section 5.6.2), e.g. `GET`.
 - `protocol` (`IO::Buffer` or `nil`): The `:protocol` of an extended CONNECT request (RFC 8441), e.g. `websocket`. `nil` when the request carries none.
 - `authority` (`IO::Buffer` or `nil`): The authority as received, of the form `host [ ":" port ]` (RFC 3986), taken from the request target in absolute or authority form and otherwise from `:authority` or `Host`. `nil` when the request conveys none.
 - `path` (`IO::Buffer` or `nil`): The path as received, neither percent-decoded nor with dot segments removed, e.g. `/api/v1`, and `*` for a request target in asterisk form. For one in absolute form with an empty path, `*` for an OPTIONS request carrying no query, and otherwise `/`. `nil` for one in authority form.
