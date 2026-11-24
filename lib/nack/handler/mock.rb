@@ -90,6 +90,10 @@ module Nack
           @handed_over.close
         end
 
+        def finished?
+          @finished
+        end
+
         def raise_if_finished(name)
           raise SpecError, "#{name} called after the host has finished with the response" if @finished
         end
@@ -151,7 +155,10 @@ module Nack
 
       class Tunnel < Stream
         def read
-          @exchange.raise_if_finished(:read)
+          if @exchange.finished?
+            raise Error, nil if @exchange.switched?
+            @exchange.raise_if_finished(:read)
+          end
           @exchange.raise_if_from_call(:read)
           @exchange.wait_until_handed_over
           raise Error, :tunnel_not_switched unless @exchange.switched?

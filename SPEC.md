@@ -136,7 +136,7 @@ The host passes a CONNECT request to the application only when configured to, an
 
 `tunnel` returns a stream (section 3.2), never `nil`, delivering the bytes the client sends after the request message and ending when the client closes its sending direction. The switching response's body carries the bytes sent to the client. `body` still delivers the request's own content, of which a CONNECT request has none.
 
-Each direction closes on its own: the response body completing closes the host's sending direction, `tunnel` ending reports that the client closed its own, and a response body failure aborts both. The host keeps the response until `tunnel` has ended or raised, so the application can go on reading after closing its own direction. It MAY instead abandon the tunnel, such as one the application stops reading.
+Each direction closes on its own: the response body completing closes the host's sending direction, `tunnel` ending reports that the client closed its own, and a response body failure aborts both. The host keeps the response until `tunnel` has ended or raised, so the application can go on reading after closing its own direction. It MAY instead abandon the tunnel, such as one the application stops reading, and `tunnel` then fails.
 
 The tunnel makes no progress until the response has been handed over, so the application reads it where waiting for that does not hold up the response, such as from the response body, not from `#call`.
 
