@@ -32,6 +32,10 @@ module Nack
         !value.include?("\0") && !value.include?("\n") && !value.include?("\r")
     end
 
+    def valid_field?(field)
+      field.is_a?(Array) && field.size == 2 && valid_header_name?(field[0]) && valid_header_value?(field[1])
+    end
+
     def valid_status?(status)
       status.is_a?(Integer) && ((200..599).cover?(status) || status == 101)
     end
@@ -55,6 +59,17 @@ module Nack
 
     def valid_interim_status?(status)
       status.is_a?(Integer) && (100..199).cover?(status) && status != 101
+    end
+
+    def upgrade_protocols(headers)
+      headers.filter_map { |name, value| value if name == "upgrade" }.flat_map { it.split(",") }.map { it.strip.downcase }
+    end
+    private_class_method :upgrade_protocols
+
+    def switches_to_tunnel?(status, response_headers, method, http_version, request_headers)
+      return method == "CONNECT" && (200..299).cover?(status) unless status == 101
+      protocols = upgrade_protocols(response_headers)
+      http_version == "HTTP/1.1" && !protocols.empty? && (protocols - upgrade_protocols(request_headers)).empty?
     end
   end
 end

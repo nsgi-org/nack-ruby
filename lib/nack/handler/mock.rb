@@ -103,20 +103,8 @@ module Nack
         def hand_over(response)
           @response = response
           status, headers = response if response.is_a?(Array)
-          @switched = switches?(status, headers)
+          @switched = Spec.switches_to_tunnel?(status, headers, @method, @http_version, @headers)
           @handed_over.close
-        end
-
-        def upgrades(headers)
-          headers.filter_map { |name, value| value if name == "upgrade" }.flat_map { it.split(",") }.map { it.strip.downcase }
-        end
-
-        def switches?(status, headers)
-          if status == 101
-            @http_version == "HTTP/1.1" && !(protocols = upgrades(headers)).empty? && (protocols - upgrades(@headers)).empty?
-          else
-            @method == "CONNECT" && (200..299).cover?(status)
-          end
         end
       end
       private_constant :Exchange
@@ -193,7 +181,7 @@ module Nack
             authority.nil? || Spec.valid_authority?(authority)
           end
           valid or raise ArgumentError, "invalid request target: #{target.inspect}"
-          headers.each { |field| valid_field?(field) or raise ArgumentError, "invalid header field: #{field.inspect}" }
+          headers.each { |field| Spec.valid_field?(field) or raise ArgumentError, "invalid header field: #{field.inspect}" }
           if %w[HTTP/2 HTTP/3].include?(http_version) && (cookies = headers.select { |name,| name == "cookie" }).size > 1
             headers = headers - cookies + [["cookie", cookies.map(&:last).join("; ")]]
           end
@@ -207,7 +195,7 @@ module Nack
           raise ArgumentError, "zero-length body chunk given" if body.any?(&:empty?)
           [nil, :body_terminated, :body_malformed, :body_too_large, :body_timeout].include?(body_error) or
             raise ArgumentError, "invalid body error: #{body_error.inspect}"
-          trailers.each { |field| valid_field?(field) or raise ArgumentError, "invalid trailer field: #{field.inspect}" }
+          trailers.each { |field| Spec.valid_field?(field) or raise ArgumentError, "invalid trailer field: #{field.inspect}" }
           raise ArgumentError, "zero-length tunnel chunk given" if tunnel.any?(&:empty?)
           [nil, :tunnel_terminated, :tunnel_timeout].include?(tunnel_error) or raise ArgumentError, "invalid tunnel error: #{tunnel_error.inspect}"
           @exchange = exchange
@@ -340,13 +328,9 @@ module Nack
 
         private
 
-        def valid_field?(field)
-          field.is_a?(Array) && field.size == 2 && Spec.valid_header_name?(field[0]) && Spec.valid_header_value?(field[1])
-        end
-
         def valid_interim_response?(status, headers)
           Spec.valid_interim_status?(status) && headers.is_a?(Array) &&
-            headers.all? { |field| valid_field?(field) && !Spec.connection_header?(field[0], status) }
+            headers.all? { |field| Spec.valid_field?(field) && !Spec.connection_header?(field[0], status) }
         end
       end
       private_constant :Request
