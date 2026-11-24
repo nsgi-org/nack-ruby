@@ -245,13 +245,13 @@ describe Nack::Handler::Mock do
     end.body.must_equal "c"
   end
 
-  it "raises a nil condition for a tunnel read once the host has abandoned the tunnel" do
+  it "raises :tunnel_terminated for a tunnel read once the host has aborted the tunnel" do
     tunnel = nil
     respond("CONNECT", "a:1") do |request|
       tunnel = request.tunnel
       [200, [], nil]
     end
-    (-> { tunnel.read }.must_raise Nack::Handler::Mock::Error).condition.must_be_nil
+    (-> { tunnel.read }.must_raise Nack::Handler::Mock::Error).condition.must_equal :tunnel_terminated
   end
 
   it "raises SpecError for a tunnel read from #call or a deferred response's #call" do

@@ -156,7 +156,7 @@ module Nack
       class Tunnel < Stream
         def read
           if @exchange.finished?
-            raise Error, nil if @exchange.switched?
+            raise Error, :tunnel_terminated if @exchange.switched?
             @exchange.raise_if_finished(:read)
           end
           @exchange.raise_if_from_call(:read)

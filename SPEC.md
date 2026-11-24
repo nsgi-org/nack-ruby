@@ -10,7 +10,7 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 
 A Nack application is a Ruby object that responds to `#call` with one argument, the request (section 3). It MUST return a response, the three-element Array `[status, headers, body]` (section 4), or a deferred response (section 4.5). It MAY raise (section 9).
 
-The response is handed over when `#call` returns, normally or by raising, or, for a deferred response, when the responder is called. The host has finished with the response once it has stopped reading the response body and, for a response that switches to a tunnel (section 6), `tunnel` has ended or raised, or the host has abandoned the tunnel.
+The response is handed over when `#call` returns, normally or by raising, or, for a deferred response, when the responder is called. The host has finished with the response once it has stopped reading the response body and, for a response that switches to a tunnel (section 6), `tunnel` has ended or raised, or the host has aborted the tunnel.
 
 When an application is loaded from a file, the file's last expression MUST evaluate to the application object, or to an object whose `#to_app` returns one. The bridge MUST call `#to_app` on such an object once in each Ractor that runs the application, and use the result there. When several Ractors run the application, the file's value MUST be shareable.
 
@@ -136,7 +136,7 @@ The host passes a CONNECT request to the application only when configured to, an
 
 `tunnel` returns a stream (section 3.2), never `nil`, delivering the bytes the client sends after the request message and ending when the client closes its sending direction. The switching response's body carries the bytes sent to the client. `body` still delivers the request's own content, of which a CONNECT request has none.
 
-Each direction closes on its own: the response body completing closes the host's sending direction, `tunnel` ending reports that the client closed its own, and a response body failure aborts both. The host keeps the response until `tunnel` has ended or raised, so the application can go on reading after closing its own direction. It MAY instead abandon the tunnel, such as one the application stops reading, and `tunnel` then fails.
+Each direction closes on its own: the response body completing closes the host's sending direction, `tunnel` ending reports that the client closed its own, and a response body failure aborts both. The host keeps the response until `tunnel` has ended or raised, so the application can go on reading after closing its own direction. It MAY instead abort the tunnel, such as one the application stops reading, and `tunnel` then fails.
 
 The tunnel makes no progress until the response has been handed over, so the application reads it where waiting for that does not hold up the response, such as from the response body, not from `#call`.
 
