@@ -48,9 +48,8 @@ module Nack
       value.is_a?(String) && value.ascii_only? && /\A[0-9]+\z/.match?(value)
     end
 
-    def no_content?(status, request)
-      request.request_method.get_string == "HEAD" ||
-        status == 204 || status == 205 || status == 304
+    def no_content?(status, method)
+      method == "HEAD" || status == 204 || status == 205 || status == 304
     end
 
     def valid_interim_status?(status)
