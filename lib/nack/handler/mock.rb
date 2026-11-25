@@ -365,7 +365,9 @@ module Nack
 
       def read_body(body)
         case body
-        when nil, String, IO::Buffer then return [Utils.read_body(body).b, []]
+        when nil then return ["".b, []]
+        when String then return [body.b, []]
+        when IO::Buffer then return [body.get_string, []]
         end
         content = "".b
         body.each { |chunk| content.append_as_bytes(chunk.is_a?(IO::Buffer) ? chunk.get_string : chunk.to_str) }

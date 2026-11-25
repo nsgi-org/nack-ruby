@@ -132,6 +132,7 @@ describe Nack::Handler::Mock do
 
   it "reads the response, its body to the end, and its trailers before closing it" do
     [nil, "é", IO::Buffer.for("é")].map { |content| respond { [200, [], content] }.body }.must_equal ["", "é".b, "é".b]
+    respond { [200, [], nil] }.body.encoding.must_equal Encoding::BINARY
     calls = []
     body = Struct.new(:calls) do
       def each

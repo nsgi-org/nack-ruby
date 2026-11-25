@@ -15,7 +15,7 @@ describe Nack::QueryParser do
     parser.parse_query("a;b").must_equal [["a;b", ""]]
     parser.parse_query("a==").must_equal [["a", "="]]
     parser.parse_query("a").must_equal [["a", ""]]
-    parser.parse_query("+=+").must_equal [[" ", " "]]
+    parser.parse_query("+=%20").must_equal [[" ", " "]]
     parser.parse_query("\xff").must_equal [["\uFFFD", ""]]
   end
 
@@ -58,7 +58,9 @@ describe Nack::QueryParser do
   it "builds a query per WHATWG" do
     parser.build_query([["a", "1"], ["b", "2"], ["a", "3"]]).must_equal "a=1&b=2&a=3"
     parser.build_query([["a", ""]]).must_equal "a="
-    parser.build_query([[" ", " "]]).must_equal "+=+"
+    parser.build_query([["\xff".b, "\xff"]]).must_equal "%FF=%EF%BF%BD"
+    parser.build_query([["é".encode(Encoding::ISO_8859_1), " "]]).must_equal "%C3%A9=+"
+    parser.build_query([["*", "~"]]).must_equal "*=%7E"
   end
 
   it "builds a nested query" do
