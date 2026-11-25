@@ -41,6 +41,11 @@ describe Nack::Utils do
     Nack::Utils.map_response(response) { [it] }.must_equal [response]
   end
 
+  it "lets an exception the block raises for an immediate response reach the caller" do
+    exception = RuntimeError.new
+    (-> { Nack::Utils.map_response([]) { raise exception } }.must_raise RuntimeError).must_be_same_as exception
+  end
+
   it "maps a deferred response when its responder is called" do
     response = [200, [], nil]
     mapped_responder = nil
