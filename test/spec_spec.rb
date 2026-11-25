@@ -54,6 +54,14 @@ describe Nack::Spec do
     Nack::Spec.valid_header_value?(:a).must_equal false
   end
 
+  it "accepts fields that are a pair of a header name and value" do
+    Nack::Spec.valid_field?(["a", "1"]).must_equal true
+    Nack::Spec.valid_field?(["a", "1", "2"]).must_equal false
+    Nack::Spec.valid_field?(["A", "1"]).must_equal false
+    Nack::Spec.valid_field?(["a", " "]).must_equal false
+    Nack::Spec.valid_field?("a1").must_equal false
+  end
+
   it "accepts final statuses" do
     Nack::Spec.valid_status?(101).must_equal true
     Nack::Spec.valid_status?(200).must_equal true
@@ -98,5 +106,16 @@ describe Nack::Spec do
     Nack::Spec.valid_interim_status?(101).must_equal false
     Nack::Spec.valid_interim_status?(200).must_equal false
     Nack::Spec.valid_interim_status?("100").must_equal false
+  end
+
+  it "knows which responses switch to a tunnel" do
+    Nack::Spec.switches_to_tunnel?(299, [], "CONNECT", "HTTP/1.1", []).must_equal true
+    Nack::Spec.switches_to_tunnel?(299, [], "GET", "HTTP/1.1", []).must_equal false
+    Nack::Spec.switches_to_tunnel?(300, [], "CONNECT", "HTTP/1.1", []).must_equal false
+    upgrade = [["upgrade", "a"], ["upgrade", "b, c"]]
+    Nack::Spec.switches_to_tunnel?(101, [["upgrade", "C"]], "GET", "HTTP/1.1", upgrade).must_equal true
+    Nack::Spec.switches_to_tunnel?(101, [["upgrade", "a"]], "GET", "HTTP/2", upgrade).must_equal false
+    Nack::Spec.switches_to_tunnel?(101, [], "GET", "HTTP/1.1", upgrade).must_equal false
+    Nack::Spec.switches_to_tunnel?(101, [["upgrade", "a, d"]], "GET", "HTTP/1.1", upgrade).must_equal false
   end
 end
