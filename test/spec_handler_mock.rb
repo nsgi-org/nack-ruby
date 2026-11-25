@@ -152,6 +152,7 @@ describe Nack::Handler::Mock do
     [response.status, response.headers.to_a, response.body, response.trailers.to_a].must_equal [201, [["c", "2"]], "aé".b, [["b", "1"]]]
     calls.must_equal [:each, :trailers, :close]
     [nil, "é", IO::Buffer.for("é")].map { |content| respond { [200, [], content] }.body }.must_equal ["", "é".b, "é".b]
+    respond { [200, [], nil] }.body.encoding.must_equal Encoding::BINARY
     -> { respond { [200, [], [1]] } }.must_raise NoMethodError
   end
 
