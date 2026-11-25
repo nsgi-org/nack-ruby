@@ -155,6 +155,21 @@ describe Nack::Handler::Mock do
     -> { respond { [200, [], [1]] } }.must_raise NoMethodError
   end
 
+  it "closes the body when enumerating it raises" do
+    calls = []
+    body = Struct.new(:calls) do
+      def each
+        raise StandardError
+      end
+
+      def close
+        calls << :close
+      end
+    end.new(calls)
+    -> { respond { [200, [], body] } }.must_raise StandardError
+    calls.must_equal [:close]
+  end
+
   it "hands over the response a deferred response passes its responder, raising SpecError for a second call and leaving the first in effect" do
     respond { ->(responder) { Thread.new { responder.call([201, [], nil]) } } }.status.must_equal 201
     respond do
