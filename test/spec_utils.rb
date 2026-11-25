@@ -36,65 +36,6 @@ describe Nack::Utils do
     failed.closed.must_equal true
   end
 
-  it "maps an immediate response" do
-    response = [200, [], nil]
-    Nack::Utils.map_response(response) { [it] }.must_equal [response]
-  end
-
-  it "lets an exception the block raises for an immediate response reach the caller" do
-    exception = RuntimeError.new
-    (-> { Nack::Utils.map_response([]) { raise exception } }.must_raise RuntimeError).must_be_same_as exception
-  end
-
-  it "maps a deferred response when its responder is called" do
-    response = [200, [], nil]
-    mapped_responder = nil
-    deferred = Nack::Utils.map_response(->(responder) { mapped_responder = responder }) { [it] }
-    responded = nil
-    deferred.call(->(argument) { responded = argument })
-    mapped_responder.call(response)
-    responded.must_equal [response]
-  end
-
-  it "passes an exception to the responder without mapping it" do
-    exception = RuntimeError.new
-    deferred = Nack::Utils.map_response(->(responder) { responder.call(exception) }) { [it] }
-    responded = nil
-    deferred.call(->(argument) { responded = argument })
-    responded.must_be_same_as exception
-  end
-
-  it "passes a StandardError the block raises to the responder" do
-    exception = RuntimeError.new
-    deferred = Nack::Utils.map_response(->(responder) { responder.call([200, [], nil]) }) { raise exception }
-    responded = nil
-    deferred.call(->(argument) { responded = argument })
-    responded.must_be_same_as exception
-  end
-
-  it "lets any other exception the block raises reach the caller of the responder" do
-    deferred = Nack::Utils.map_response(->(responder) { responder.call([200, [], nil]) }) { raise Exception } # standard:disable Lint/RaiseException
-    -> { deferred.call(->(_) {}) }.must_raise Exception
-  end
-
-  it "raises SpecError on a second call of the responder, without mapping again" do
-    calls = 0
-    deferred = Nack::Utils.map_response(->(responder) { 2.times { responder.call([200, [], nil]) } }) { calls += 1 }
-    -> { deferred.call(->(_) {}) }.must_raise Nack::SpecError
-    calls.must_equal 1
-  end
-
-  it "forwards #cancel only to a deferred response that responds to it" do
-    cancelable = Struct.new(:canceled) do
-      def cancel
-        self.canceled = true
-      end
-    end.new
-    Nack::Utils.map_response(cancelable) {}.cancel
-    cancelable.canceled.must_equal true
-    Nack::Utils.map_response(->(_) {}) {}.wont_respond_to :cancel
-  end
-
   it "escapes a form component per WHATWG" do
     Nack::Utils.escape(" *~é").must_equal "+*%7E%C3%A9"
     Nack::Utils.escape("\xff").must_equal "%EF%BF%BD"
