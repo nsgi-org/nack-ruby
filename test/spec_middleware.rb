@@ -30,36 +30,33 @@ describe Nack::Middleware do
 
   it "raises SpecError on a second call of the responder, without mapping again" do
     calls = 0
-    deferred = map_response(->(responder) { 2.times { responder.call([200, [], nil]) } }) { calls += 1 }
+    deferred = map_response(->(responder) { 2.times { responder.call(nil) } }) { calls += 1 }
     -> { deferred.call(->(_) {}) }.must_raise Nack::SpecError
     calls.must_equal 1
   end
 
-  it "maps a deferred response when its responder is called" do
-    response = [200, [], nil]
-    mapped_responder = nil
-    deferred = map_response(->(responder) { mapped_responder = responder }) { [it] }
+  it "maps anything but an exception passed to the responder" do
+    deferred = map_response(->(responder) { responder.call(nil) }) { [it] }
     responded = nil
     deferred.call(->(argument) { responded = argument })
-    mapped_responder.call(response)
-    responded.must_equal [response]
+    responded.must_equal [nil]
   end
 
   it "passes a StandardError the block raises to the responder" do
     exception = RuntimeError.new
-    deferred = map_response(->(responder) { responder.call([200, [], nil]) }) { raise exception }
+    deferred = map_response(->(responder) { responder.call(nil) }) { raise exception }
     responded = nil
     deferred.call(->(argument) { responded = argument })
     responded.must_be_same_as exception
   end
 
   it "lets any other exception the block raises reach the caller of the responder" do
-    deferred = map_response(->(responder) { responder.call([200, [], nil]) }) { raise Exception } # standard:disable Lint/RaiseException
+    deferred = map_response(->(responder) { responder.call(nil) }) { raise Exception } # standard:disable Lint/RaiseException
     -> { deferred.call(->(_) {}) }.must_raise Exception
   end
 
   it "passes an exception to the responder without mapping it" do
-    exception = RuntimeError.new
+    exception = Exception.new
     deferred = map_response(->(responder) { responder.call(exception) }) { [it] }
     responded = nil
     deferred.call(->(argument) { responded = argument })

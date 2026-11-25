@@ -12,7 +12,7 @@ module Nack
       def call(response)
         raise SpecError, "responder called more than once" if @called
         @called = true
-        if response.is_a?(Array)
+        unless response.is_a?(Exception)
           response = begin
             @block.call(response)
           rescue => exception
