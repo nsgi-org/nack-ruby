@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "cgi/escape"
+
 module Nack
   class QueryParser
     def initialize(param_limit: 4096, depth_limit: 32)
@@ -25,14 +27,31 @@ module Nack
     end
 
     def build_query(params)
-      params.map { |name, value| build_param(Utils.escape(name), value) }.join("&")
+      params.map { |name, value| build_param(escape(name), value) }.join("&")
     end
 
     def build_nested_query(params)
-      join(params.map { |name, value| build_nested_param(Utils.escape(name), value) })
+      join(params.map { |name, value| build_nested_param(escape(name), value) })
     end
 
     private
+
+    def escape(string)
+      string =
+        case string.encoding
+        when Encoding::BINARY then string
+        when Encoding::UTF_8 then string.valid_encoding? ? string : string.scrub
+        else string.ascii_only? ? string : string.encode(Encoding::UTF_8, invalid: :replace, undef: :replace)
+        end
+      escaped = CGI.escape(string)
+      # CGI.escape leaves ~ and encodes *; the WHATWG set is the reverse.
+      return escaped unless escaped.include?("%2A") || escaped.include?("~")
+      escaped.gsub(/%2A|~/, "%2A" => "*", "~" => "%7E")
+    end
+
+    def unescape(string)
+      CGI.unescape(string).force_encoding(Encoding::UTF_8).scrub!
+    end
 
     def each_param(string)
       pairs = string.b.split("&", @param_limit + 1)
@@ -40,7 +59,7 @@ module Nack
       pairs.each do |pair|
         next if pair.empty?
         name, value = pair.split("=", 2)
-        yield Utils.unescape(name), value ? Utils.unescape(value) : +""
+        yield unescape(name), value ? unescape(value) : +""
       end
     end
 
@@ -80,13 +99,13 @@ module Nack
     end
 
     def build_param(escaped_name, value)
-      "#{escaped_name}=#{Utils.escape(value)}"
+      "#{escaped_name}=#{escape(value)}"
     end
 
     def build_nested_param(escaped_name, value)
       case value
       when Array then join(value.map { build_nested_param("#{escaped_name}%5B%5D", it) })
-      when Hash then join(value.map { |key, child| build_nested_param("#{escaped_name}%5B#{Utils.escape(key)}%5D", child) })
+      when Hash then join(value.map { |key, child| build_nested_param("#{escaped_name}%5B#{escape(key)}%5D", child) })
       else build_param(escaped_name, value)
       end
     end
