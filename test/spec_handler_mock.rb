@@ -131,6 +131,7 @@ describe Nack::Handler::Mock do
   end
 
   it "reads the response, its body to the end, and its trailers before closing it" do
+    [nil, "é", IO::Buffer.for("é")].map { |content| respond { [200, [], content] }.body }.must_equal ["", "é".b, "é".b]
     calls = []
     body = Struct.new(:calls) do
       def each
@@ -151,7 +152,6 @@ describe Nack::Handler::Mock do
     response = respond { [201, [["c", "2"]], body] }
     [response.status, response.headers.to_a, response.body, response.trailers.to_a].must_equal [201, [["c", "2"]], "aé".b, [["b", "1"]]]
     calls.must_equal [:each, :trailers, :close]
-    [nil, "é", IO::Buffer.for("é")].map { |content| respond { [200, [], content] }.body }.must_equal ["", "é".b, "é".b]
     -> { respond { [200, [], [1]] } }.must_raise NoMethodError
   end
 
